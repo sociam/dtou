@@ -1,7 +1,20 @@
+<!DOCTYPE html>
 <html>
-	<body>
-
-		hello prism
-
+	<head>
+		<meta charset="utf-8" />
+		<link rel="stylesheet/less" href="css/popup.less">
+		<link rel="stylesheet" type="text/css" href="css/toggle.css">
+		<script type="text/javascript" src="lib/less/dist/less.js"></script>		
+		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+		<script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
+		<script type="text/javascript" src="lib/angular/angular.js"></script>		
+		<script type="text/javascript" src="js/popup.js"></script>		
+		<title></title>
+	</head>
+	<body ng-app="popup" ng-controller="main">
+		<table>
+			<tr><td>Twitter</td><td><label class="switch" ng-model="enable.twitter"><input type="checkbox" checked><div class="slider round"></div></label></td></tr>
+			<tr><td>Facebook</td><td><label class="switch" ng-model="enable.fb"><input type="checkbox" checked><div class="slider round"></div></label></td></tr>
+		</table>
 	</body>
 </html>
