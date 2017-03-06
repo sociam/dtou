@@ -1,0 +1,35 @@
+{
+  "manifest_version": 2,
+
+  "name": "DTOU Prism",
+  "description": "Data Terms of Use Prism",
+  "version": "1.0",
+
+  "browser_action": {
+    "default_icon": "img/prism.png",
+    "default_popup": "popup.html"
+  },
+
+  "permissions": [
+    "activeTab",
+    "https://ajax.googleapis.com/"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["https://twitter.com/*", "*://*.twitter.com/"],
+      "css": ["css/cs.css"],
+      "js": [ 
+        "lib/jquery/dist/jquery.js",  
+        "lib/lodash/dist/lodash.js",
+        "lib/bluebird/js/browser/bluebird.min.js",
+        "js/cs.js"
+      ]
+    }
+  ],
+
+  "background": {
+    "page": "bg.html", 
+    "persistent": true
+  }
+}
