@@ -14,7 +14,7 @@ var enabled_prisms = {},
 		}
 	}), setEnableContentPage = (page,val) => {
 		console.log('setting ', page, ' to ', val);
-		enabled_prisms = val;
+		enabled_prisms[page] = val;
 	}, getEnabledContentPages = () => enabled_prisms;
 
 
