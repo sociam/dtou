@@ -18,12 +18,12 @@
   "content_scripts": [
     {
       "matches": ["https://twitter.com/*", "*://*.twitter.com/"],
-      "css": ["css/cs.css"],
+      "css": ["css/twitter-cs.css"],
       "js": [ 
         "lib/jquery/dist/jquery.js",  
         "lib/lodash/dist/lodash.js",
         "lib/bluebird/js/browser/bluebird.min.js",
-        "js/cs.js"
+        "js/twitter-cs.js"
       ]
     }
   ],

@@ -28,7 +28,6 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 			return (obj) => port.postMessage(obj);
 		};
 
-
 	chrome.runtime.onConnect.addListener((port) => {
 		console.log('connect! ', port);
 		var handlers = makeHandlers(port);
@@ -45,7 +44,7 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 
 	console.log('ok');
 
-	window._utils = utils;
+	// window._utils = utils;
 	window._st = storage;
 
 });
