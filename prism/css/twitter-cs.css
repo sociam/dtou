@@ -1,0 +1,15 @@
+
+* {
+    -webkit-transition: width 0.5s; /* Safari */
+}
+.js-stream-item div.tweet {
+	opacity:0.72;
+}
+.js-stream-item div.tweet.mine {
+	border: 3px solid pink;
+	opacity:1.0;
+}
+
+.prismBtn {
+	
+}

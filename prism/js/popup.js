@@ -14,4 +14,9 @@ angular.module('popup', [])
 				});
 			}, 0);
 		});
+
+		$scope.openKnapsack = () => {
+			chrome.tabs.create({url:"explore.html"});
+		};
+
 	});

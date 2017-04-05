@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<link rel="stylesheet/less" href="css/explore.less">
+		<link rel="stylesheet" type="text/css" href="css/toggle.css">
+
+		<script type="text/javascript" src="lib/less/dist/less.js"></script>		
+		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+		<script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>	
+		<script type="text/javascript" src="lib/backbone/backbone.js"></script>					
+		<script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
+		<script type="text/javascript" src="lib/angular/angular.js"></script>		
+		<script type="text/javascript" src="js/dtou.js"></script>		
+		<script type="text/javascript" src="js/utils.js"></script>		
+		<script type="text/javascript" src="js/storage2.js"></script>		
+		<script type="text/javascript" src="js/storage2-sync.js"></script>				
+		<script type="text/javascript" src="js/remote.js"></script>		
+		<script type="text/javascript" src="js/explore.js"></script>		
+		<title></title>
+	</head>
+	<body ng-app="dtouprism" ng-controller="explore">
+		<img src="img/prism.png" id="logo"> 
+		<h1> data terms of use </h1>
+		
+		<h2> stored {{ items.length }} </h2>
+
+		<div class='scroll'>
+			<ul>
+				<li ng-repeat='s in items' ng-bind='serialise(s.attributes)'></li>
+			</ul>
+		</div>
+
+	</body>
+</html>
