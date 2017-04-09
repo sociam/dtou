@@ -13,6 +13,7 @@ var registered_tweet_ids,
 	intersected_tweets,
 	profile,
 	port,
+	cbHandlers = {},
 	makeAddDToU = (tweet) => {
 		return $('<div class="dtou-action-panel"><div class="btn">+</div></div>').on('click',(evt) => {
 			// extract id
@@ -28,8 +29,7 @@ var registered_tweet_ids,
 	openTab = (path, tweet) => {
 		port.postMessage({cmd:'openTab', url:[path, '?', $.param({id:tweet.id, active:true})].join(''), active:true });
 	},
-	sneakAdd = (tweet, tweetData) => {
-		console.log('hi - ', tweet);
+	addMenu = (tweet, tweetData) => {
 		let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
 		$(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
 		$('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View DToU Status</button></li>')
@@ -39,9 +39,41 @@ var registered_tweet_ids,
 			.on('click', function() { console.log('click create dtou '); openTab('/create.html', tweetData);  $('.dropdown').removeClass('open');  return true; })
 			.prependTo(sel);
 	},
-	register = (twt) => {
-		console.log('sending tweet to back to save > ', twt);
+	saveTweet = (twt) => {
+		console.log('saivng tweet >> ', twt);
 		port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt)});
+	},
+	guid = function(len) {
+		len = len || 64;
+		var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ-';
+		return Date.now() + '-' + _.range(0,len).map(function () {
+			return alpha[Math.floor(Math.random() * alpha.length)];
+		}).join('');
+	},
+	askBg = (data) => {
+		return new Promise((acc,rej) => {
+			var nonce = guid();
+			cbHandlers[nonce] = (result) => {
+				acc(result);
+				delete cbHandlers[nonce];
+			};
+			port.postMessage(_.extend({cb_nonce:nonce}, data));
+		});
+	},
+	augment = (tweet, data) => {
+		var things = $(tweet).find('.js-tweet-text-container p').clone();
+		console.log('askBG >> ', {cmd:'get_model', id:data.id});
+		askBg({cmd:'get_model', id:data.id}).then((response) => {
+			// console.log('askBG get response!!!  >> ', response.data, response.data.dtou);
+			if (response.data.dtou && response.data.dtou.substitute) {
+				window._tweet = tweet;
+				window._response = response;
+				window.things = things;
+				$(things).html(response.data.dtou.substituteHtml);
+				$(tweet).find('.js-tweet-text-container').append(things);
+				$($(tweet).find('.js-tweet-text-container p')[0]).hide();
+			}
+		});
 	},
 	extractTweet = (tweetDOM) => {
 		// var decoded = $(tweetDOM).data('') && JSON.parse($(tweetDOM)
@@ -53,7 +85,8 @@ var registered_tweet_ids,
 			authorid: $(tweetDOM).data('user-id'),
 			author: $(tweetDOM).data('screen-name'),
 			mentions:$(tweetDOM).data('mentions'),
-			text:$(tweetDOM).find('.js-tweet-text-container').text()
+			text:$(tweetDOM).find('.js-tweet-text-container').text(),
+			html:$(tweetDOM).find('.js-tweet-text-container')[0].innerHTML
 		};
 	},
 	update_dom = () => {
@@ -69,8 +102,10 @@ var registered_tweet_ids,
 			.addClass('mine')
 			.map((x,tweet) => {
 				if ($(tweet).find('li.dtou').length === 0) { 
-					sneakAdd(tweet, extractTweet(tweet));				
-					register(extractTweet(tweet));
+					var tweetData = extractTweet(tweet);
+					saveTweet(tweetData);				
+					addMenu(tweet, tweetData);
+					augment(tweet, tweetData);
 				}
 			});
 
@@ -85,12 +120,16 @@ var init = () => {
 	port = chrome.runtime.connect();	
 	port.postMessage({cmd:'get_defs', type:'tweet'});
 	port.onMessage.addListener(function(msg) {
+		// if 
+		if (msg.cb_nonce && cbHandlers[msg.cb_nonce]) {
+			return cbHandlers[msg.cb_nonce](msg);
+		}
 		if (msg.cmd === 'get_defs' && msg.type == 'tweet') {
 			setTweetIds(msg.ids);
-		} else {
-			console.error("unknown message", msg);
+		  	return update_dom();
 		} 
-	  	update_dom();
+
+		console.error("unknown message", msg);
 	});	
 	$('#timeline').bind('DOMSubtreeModified', function(e) {
 	  if (e.target.innerHTML.indexOf('"tweet ') >= 0) { 

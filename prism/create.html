@@ -2,6 +2,8 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
+		<link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/bootstrap.css">
+
 		<link rel="stylesheet/less" href="css/create.less">
 		<link rel="stylesheet" type="text/css" href="css/toggle.css">
 
@@ -26,10 +28,17 @@
 		<h1> data terms of use </h1>
 
 		<h2> create a new dtou declaration </h2>
+		<div class="dtoucontrols">
 
-		<div ng-class="{tweet:selected.attributes.type==='tweet'}" ng-show="selected">
-			<!-- <pre ng-bind="selected.id"></pre> -->
-			<div ng-bind="selected.attributes.text"></div>
+			<div ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" ng-show="selected">
+				<!-- <pre ng-bind="selected.id"></pre> -->
+				<div ng-bind-html="::selectedHtml"></div>
+			</div>
+			<table>
+				<tr><td>Substitute Content</td><td><input type="checkbox" ng-model="ui.substitute"></td><td class='value'><input type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td></tr>
+				<tr><td>Cryptographically sign</td><td><input type="checkbox" ng-bind="ui.sign"></td><td class='value' ng-bind="ui.sign ? 'sign' : 'not signed'"></td></tr>
+			</table>
+			<button class="btn" ng-click="save()">Save</button>
 		</div>
 		<div class="" ng-show="!selected">
 			No object selected

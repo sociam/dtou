@@ -23,6 +23,11 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 			'make_new_dtou': (itemspec) => {
 			    // chrome.tabs.create({ url: chrome.extension.getURL('create.html') + '?' + jQuery.params(itemspec) });
 			},
+			'get_model': (id) => {
+				return storage.getCollection('items').then((collection) => {
+					return collection.get(id);
+				});
+			},
 			'save': (o) => {
 				storage.getCollection('items').then((collection) => {
 					var m = collection.get(""+o.data.id);
@@ -62,7 +67,15 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 		port.onMessage.addListener((msg) => { 
 			console.info('message ', msg);
 			if (msg.cmd && handlers[msg.cmd]) { 
-				handlers[msg.cmd](msg);
+				var nonce = msg.cb_nonce,
+					result = handlers[msg.cmd](msg);
+
+				if (result !== undefined && nonce !== undefined) {
+					var rp = result.then === undefined ? Promise.resolve(result) : result;
+					rp.then((rdata) => {
+						port.postMessage({cb_nonce:nonce, data:rdata});
+					});
+				}
 			} else {
 				console.error("unknown command ", msg, msg.cmd);
 			}
