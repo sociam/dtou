@@ -3,11 +3,13 @@
     -webkit-transition: width 0.5s; /* Safari */
 }
 .js-stream-item div.tweet {
-	opacity:0.72;
+	// opacity:0.72;
+	background-color:#fafafa;	
 }
 .js-stream-item div.tweet.mine {
-	border: 3px solid pink;
+	// border: 0.4px solid pink;
 	opacity:1.0;
+	background-color:#fafeff;
 }
 
 .prismBtn {

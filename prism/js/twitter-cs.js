@@ -25,15 +25,18 @@ var registered_tweet_ids,
 			port.postMessage({cmd:"make_new_dtou", type:"tweet", tweetid:tweetid, tweetcontent:content});
 		});
 	},
-	sneakAdd = (tweet) => {
+	openTab = (path, tweet) => {
+		port.postMessage({cmd:'openTab', url:[path, '?', $.param({id:tweet.id, active:true})].join(''), active:true });
+	},
+	sneakAdd = (tweet, tweetData) => {
 		console.log('hi - ', tweet);
 		let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
 		$(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
 		$('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View DToU Status</button></li>')
-			.on('click', function() { console.log('view status'); })
+			.on('click', function() { console.log('view status'); openTab('/edit.html', tweetData); $('.dropdown').removeClass('open'); return true; })
 			.prependTo(sel);
 		$(`<li class="dtou-dropdown"><button type="button" class="dropdown-link">Create DToU Declaration</button></li>`)
-			.on('click', function() { console.log('click create dtou '); })
+			.on('click', function() { console.log('click create dtou '); openTab('/create.html', tweetData);  $('.dropdown').removeClass('open');  return true; })
 			.prependTo(sel);
 	},
 	register = (twt) => {
@@ -43,8 +46,9 @@ var registered_tweet_ids,
 	extractTweet = (tweetDOM) => {
 		// var decoded = $(tweetDOM).data('') && JSON.parse($(tweetDOM)
 		return { 
-			id:$(tweetDOM).data('tweet-id'),
+			id:'tweet-'+$(tweetDOM).data('tweet-id'),
 			twitterId:$(tweetDOM).data('tweet-id'),
+			type:'tweet',
 			conversationId:$(tweetDOM).data('conversation-id'),
 			authorid: $(tweetDOM).data('user-id'),
 			author: $(tweetDOM).data('screen-name'),
@@ -65,7 +69,7 @@ var registered_tweet_ids,
 			.addClass('mine')
 			.map((x,tweet) => {
 				if ($(tweet).find('li.dtou').length === 0) { 
-					sneakAdd(tweet);				
+					sneakAdd(tweet, extractTweet(tweet));				
 					register(extractTweet(tweet));
 				}
 			});

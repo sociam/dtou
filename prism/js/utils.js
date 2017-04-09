@@ -196,7 +196,21 @@
 						for (var i = l; i < h; i++) { a.push(i); }
 						return a;
 					},
-					
+					getUrlParam: function(url, sParam) {
+					    var sPageURL = decodeURIComponent(url.substring(url.indexOf('?')+1)),
+					        sURLVariables = sPageURL.split('&'),
+					        sParameterName,
+					        i;
+
+					    for (i = 0; i < sURLVariables.length; i++) {
+					        sParameterName = sURLVariables[i].split('=');
+					        console.log('sParameterName[0]', sParameterName[0]);
+
+					        if (sParameterName[0] === sParam) {
+					            return sParameterName[1] === undefined ? true : sParameterName[1];
+					        }
+					    }
+					},					
 					getCSV: function (url) {
 						return new Promise(function (resolve, reject) {
 							d3.csv(url).get(function (err, rows) {

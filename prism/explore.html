@@ -27,7 +27,7 @@
 
 		<div class='scroll'>
 			<ul>
-				<li ng-repeat='s in items' ng-bind='serialise(s.attributes)'></li>
+				<li ng-repeat='s in items'> <b>{{s.id}}</b> :: {{ serialise(s.attributes) }} </li>
 			</ul>
 		</div>
 

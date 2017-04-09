@@ -13,6 +13,10 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 			}
 			return [];
 		}, makeHandlers = (port) => ({
+			'openTab':(msg) => {
+				console.log('got OpenTab message from contentscript >> ', msg);
+				chrome.tabs.create(_.pickBy(msg, (v,k) => k !== 'cmd'));
+			},
 			'get_defs': (msg) => { 
 			   port.postMessage(_(msg).chain().clone().extend({ids: unpackLSArr(localStorage[msg.type])}).value());
 			},
@@ -21,16 +25,16 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 			},
 			'save': (o) => {
 				storage.getCollection('items').then((collection) => {
-					var m = collection.get("sid:"+o.data.id);
+					var m = collection.get(""+o.data.id);
 					// console.log('yo .. ', m);
 					if (m === undefined) {
-						console.log('making with id ', "sid:"+o.data.id);
+						console.log('making with id ', o.data.id);
 						var ofilter = _.pickBy(o.data, (v,k) => { 
 							console.log('v k ', v, k);
 							return k !== 'id';
 						});
 						console.log('ofilter ', ofilter);
-						m = collection.make("sid:"+o.data.id);
+						m = collection.make(""+o.data.id);
 						m.set(ofilter);
 						m.save().then(() => {
 							console.log(`saved ${o.data.type} : `, m);

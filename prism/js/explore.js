@@ -12,7 +12,6 @@ angular.module('dtouprism').controller('explore', function($scope, storage, util
 		$scope.$watchCollection($scope.items, () => { console.log(' items changed ', $scope.items.length ); });
 	});
 
-
 	window._s = $scope;
 
 });

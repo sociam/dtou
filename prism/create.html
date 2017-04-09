@@ -2,20 +2,37 @@
 <html>
 	<head>
 		<meta charset="utf-8" />
-		<link rel="stylesheet/less" href="css/popup.less">
+		<link rel="stylesheet/less" href="css/create.less">
 		<link rel="stylesheet" type="text/css" href="css/toggle.css">
+
 		<script type="text/javascript" src="lib/less/dist/less.js"></script>		
 		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
-		<script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>		
+		<script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>	
+		<script type="text/javascript" src="lib/backbone/backbone.js"></script>					
 		<script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
-		<script type="text/javascript" src="lib/angular/angular.js"></script>		
+		<script type="text/javascript" src="lib/angular/angular.js"></script>
+
+		<script type="text/javascript" src="js/dtou.js"></script>		
+		<script type="text/javascript" src="js/utils.js"></script>		
+		<script type="text/javascript" src="js/storage2.js"></script>		
+		<script type="text/javascript" src="js/storage2-sync.js"></script>				
+		<script type="text/javascript" src="js/remote.js"></script>		
+		<script type="text/javascript" src="js/explore.js"></script>
 		<script type="text/javascript" src="js/create.js"></script>		
 		<title></title>
 	</head>
-	<body ng-app="popup" ng-controller="main">
+	<body ng-app="dtouprism" ng-controller="create">
 		<img src="img/prism.png" id="logo"> 
 		<h1> data terms of use </h1>
 
 		<h2> create a new dtou declaration </h2>
+
+		<div ng-class="{tweet:selected.type==='tweet'}" ng-show="selected">
+			<pre ng-bind="selected.id"></pre>
+			<h4 ng-bind="selected.attributes.text"></h4>
+		</div>
+		<div class="" ng-show="!selected">
+			No object selected
+		</div>
 	</body>
 </html>
