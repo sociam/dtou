@@ -27,9 +27,9 @@
 
 		<h2> create a new dtou declaration </h2>
 
-		<div ng-class="{tweet:selected.type==='tweet'}" ng-show="selected">
-			<pre ng-bind="selected.id"></pre>
-			<h4 ng-bind="selected.attributes.text"></h4>
+		<div ng-class="{tweet:selected.attributes.type==='tweet'}" ng-show="selected">
+			<!-- <pre ng-bind="selected.id"></pre> -->
+			<div ng-bind="selected.attributes.text"></div>
 		</div>
 		<div class="" ng-show="!selected">
 			No object selected
