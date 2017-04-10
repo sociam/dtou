@@ -1,10 +1,10 @@
 # Data Terms of Use:
-## giving end-users control over their data
-### by electronic Max ~ emax@cs.ox.ac.uk, Reuben Binns ~ reuben.binns@cs.ox.ac.uk, Jun Zhao ~ jun.zhao@cs.ox.ac.uk, and Nigel Shadbolt ~ nigel.shadbolt@cs.ox.ac.uk
+### giving end-users new kinds of control over their data
+#### by electronic Max ~ emax@cs.ox.ac.uk, Reuben Binns ~ reuben.binns@cs.ox.ac.uk, Jun Zhao ~ jun.zhao@cs.ox.ac.uk, and Nigel Shadbolt ~ nigel.shadbolt@cs.ox.ac.uk
 
 This document describes Data Terms of Use, an experimental idea in designed to give end-users control of data.
 
-This repository represents draft ideas on the DTOU as a specification, and may ultimately serve as a normative set of specs. However at this point it is intended to serve as a public facing RfC and open community collaborative artefact. 
+This repository represents draft ideas on the DTOU as a specification, and may ultimately serve as a normative set of specs. However at this point it is intended to serve as a public facing RfC and open community collaborative artefact.  If you wish to contribute, feel free to fork and make pull requests, or simply subnit an issue up above. 
 
 ## Overview: DToU vs the Platform Web
 
@@ -22,4 +22,16 @@ Similarly, people know how to interact with tweets on Twitter because there are 
 
 What if the ability to interact with data were not dictated by platforms themselves, but were flexible, fluid and most of all, defined by end-users?
 
+This seems both challenging and nebulous.  Why might people want to control their data, anyway? We have at least three reasons.
 
+#### By making expectation violations easier to identify
+
+If people could declare explicitly how they want their data managed and used, then it is clearer when services act in violation of their wishes.  
+
+Helen Nissenbaum coined the term "contextual integrity" to refer to when things violated their 
+
+There are also v
+
+
+## Acknoweldgements
+This is a project that started under the [EPSRC Project SOCIAM: The Theory and Practice of Social Machines](http://sociam.org).
