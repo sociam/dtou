@@ -44,9 +44,39 @@ This result of this phenomenon is feature inertia and eventual stagnation; the l
 
 Finally, thanks to the market dominance of today's social platforms, there is extremely little diversity in the ecosystem - what has resulted from this process is a calcification of the channels that we used to communicate everyday, an artificial coagulation and sparcity of choice within the malleable, versatile digital substrates that we technology has given for us.
 
-### The DToU Approach: An Experiment in Shape their Own Interactions
+## The DToU Approach: Enabling End-Users to Control Interactions
 
 DToU represents not a single technology but an experiment seeking to evaluate an approach at giving people the ability to articulate the interactions around and with their information.
+
+### DToU 1.0: Three layers of simplicity
+
+Our proposal of DToU suggests three kinds of sets of concerns around data, dissplayed in this table:
+
+|  _Layer_  |  _Description_ |
+| --- | ------- | 
+|  1 |  __Uses & Intentions__ | 
+|  2 |  __Social Conventions__ |
+|  3 |  __Data Handling__ |
+
+We describe each layer in detail below.
+
+#### Layer 1: Uses and Intentions
+
+> The Intentions of Use layer is a way for people to express the desired contexts, purposes and frames of use of particular data, as well as for expressing interpretational, sampling and representational limitations that might affect use, along possibly with accompanying explanations & justifications as to why such constraints or preferences are in place to motivate compliance.
+
+Most people are visible in multiple public or semi-public spaces on the web. We have professional details listed on an institutional web page, we blog and microblog, share videos, have accounts on a semi-public professional and social networks like LinkedIn and Facebook, and contribute on public code repositories like GitHub. While there are various ways to restrict access to such content, it is often more desirable and feasible to allow it to be publicly accessible. However, this can result in content being taken out of context and used to form judgements about us in ways which conflict with our expectations. For instance, public profiles created in a personal capacity might be viewed by a potential employer, who may form an unwarranted judgement about the prospective employee.
+
+Even if we cannot explicitly prevent such outcomes, we may wish to provide additional information which would contextualise our profiles and signal our expectations regarding their uses to honest and well-motivated actors. Many people already attempt to do so in various ways. For instance, many Twitter users indicate in their profile biographies that they are posting in a personal capacity. Some people may use their personal page to link to their presence elsewhere on the web, and provide contextual information about those profiles. Our proposed architecture would enable the communication of such intentions and contexts through machine readable annotations. This would facilitate individuals to signal appropriate uses and relevant contextual information about aspects of their public web presence as it is manifested across multiple platforms. It would also allow for the creation of interfaces to specify these criteria in the absence of established social routines.
+
+Layer 1, or __Uses and Intentions__ of DToU allows differentiation among such uses.
+
+#### Layer 2: Social Conventions
+
+
+
+#### Layer 3: Data Handling 
+
+
 
 ## Acknowledgements
 This is a project that started under the [EPSRC Project SOCIAM: The Theory and Practice of Social Machines](http://sociam.org).
