@@ -39,7 +39,7 @@ This reduces dependence on platforms to comply with people's wishes; people can 
 
 #### 3. To unlock innovation through experimentation
 
-Megaplatforms today (like Facebook or Twitter) suffer from such widespread success that it undermines their onw ability to innovate.  In order to provide a uniform interface across all users, FB and Twitter  often face widespread backlash when they try to roll out new features.  This creates feature inertia; the least risky action for such platforms is to not change anything at all.  Moreover, if a subset of users has a demand or request, these platforms have to weigh the potential benefit of honouring the request with the potential resistance from other users who may not want it.
+Megaplatforms today (like Facebook or Twitter) suffer from such widespread success that it undermines their ability to innovate.  In order to provide a uniform interface across all users, such platforms are faced with an all-or-nothing strategy; to roll out a new feature to everyone, and face the risk of widespread backlash, or to keep the status quo.  This creates feature inertia; the least risky action for such platforms is to not change anything, or to change things as little as possible to avoid upsetting users.  Moreover, if a subset of users has a demand or request, these platforms have to weigh the potential benefit of honouring the request with the potential resistance from other users who may not want it.
 
 ## Acknoweldgements
 This is a project that started under the [EPSRC Project SOCIAM: The Theory and Practice of Social Machines](http://sociam.org).
