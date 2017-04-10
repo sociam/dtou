@@ -1,5 +1,4 @@
-# Data Terms of Use:
-### giving end-users new kinds of control over their data 
+# Data Terms of Use : giving people new kinds of control over their data 
 #### status: first draft (10 April 2017)
 #### by electronic Max ~ emax@cs.ox.ac.uk, Reuben Binns ~ reuben.binns@cs.ox.ac.uk, Jun Zhao ~ jun.zhao@cs.ox.ac.uk, and Nigel Shadbolt ~ nigel.shadbolt@cs.ox.ac.uk
 
