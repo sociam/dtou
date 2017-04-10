@@ -61,17 +61,19 @@ var registered_tweet_ids,
 		});
 	},
 	augment = (tweet, data) => {
-		var things = $(tweet).find('.js-tweet-text-container p').clone();
-		console.log('askBG >> ', {cmd:'get_model', id:data.id});
 		askBg({cmd:'get_model', id:data.id}).then((response) => {
 			// console.log('askBG get response!!!  >> ', response.data, response.data.dtou);
 			if (response.data.dtou && response.data.dtou.substitute) {
+				var things = $(tweet).find('.js-tweet-text-container p').clone();
+				$(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
+				things.addClass('secondLayer');
+				console.log('askBG >> ', {cmd:'get_model', id:data.id});				
 				window._tweet = tweet;
 				window._response = response;
 				window.things = things;
 				$(things).html(response.data.dtou.substituteHtml);
 				$(tweet).find('.js-tweet-text-container').append(things);
-				$($(tweet).find('.js-tweet-text-container p')[0]).hide();
+				// $($(tweet).find('.js-tweet-text-container p')[0]).hide();
 			}
 		});
 	},

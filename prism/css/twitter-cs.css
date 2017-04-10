@@ -1,6 +1,6 @@
 
 * {
-    -webkit-transition: width 0.5s; /* Safari */
+    -webkit-transition: * 0.5s; /* Safari */
 }
 .js-stream-item div.tweet {
 	// opacity:0.72;
@@ -11,7 +11,17 @@
 	opacity:1.0;
 	background-color:#fafeff;
 }
-
 .prismBtn {
 	
 }
+.firstLayer, .secondLayer {
+	// -webkit-transition: max-height 1.0s, opacity 1.0s, height:1.0s;
+	// transition: max-height 1.0s, opacity 1.0s, height:1.0s;
+    // transition: height 1.5s, opacity:1.5s; /* Safari */
+    // -webkit-transition: height 1.5s, opacity:1.5s; /* Safari */
+    transition: all 0.1s linear;
+}
+.tweet .firstLayer { opacity: 1.0; height:auto; }
+.tweet:hover .firstLayer { opacity:0.0; height:0px; }
+.tweet .secondLayer { opacity: 0.0; height:0px; }
+.tweet:hover .secondLayer { opacity:1.0; height:auto; }
