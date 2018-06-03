@@ -2,6 +2,8 @@
 
 (function () {
 
+	var DEBUG = false;
+
 	var PRODUCTION_SERVER = {
 			MAIN: 'https://lifecour.se/api/v2',
 			BASEWS: 'https://lifecour.se',
@@ -27,6 +29,9 @@
 					REMOTE_WS_BASE: SERVER && SERVER.BASEWS || undefined,
 					REMOTE_WS_PATH: SERVER && SERVER.WS || undefined,
 					TWENTY_FOUR_HOURS_USEC: 24 * 60 * 60 * 1000,
+                    debug: function() {
+					    return DEBUG;
+                    },
 					getFactory: function (factoryName) {
 						return $injector.get(factoryName);
 					},

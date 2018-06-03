@@ -40,7 +40,7 @@ var registered_tweet_ids,
 			.prependTo(sel);
 	},
 	saveTweet = (twt) => {
-		console.log('saivng tweet >> ', twt);
+		console.log('saving tweet >> ', twt);
 		port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt)});
 	},
 	guid = function(len) {
@@ -103,7 +103,7 @@ var registered_tweet_ids,
 		$('.tweet').filter(function() { return $(this).data('screen-name') === profile.screenName; })
 			.addClass('mine')
 			.map((x,tweet) => {
-				if ($(tweet).find('li.dtou').length === 0) { 
+				if ($(tweet).find('li.dtou').length === 0) {
 					var tweetData = extractTweet(tweet);
 					saveTweet(tweetData);				
 					addMenu(tweet, tweetData);
@@ -119,10 +119,10 @@ var registered_tweet_ids,
 
 var init = () => {
 	// connect to the back-end
-	port = chrome.runtime.connect();	
+	port = chrome.runtime.connect();
 	port.postMessage({cmd:'get_defs', type:'tweet'});
 	port.onMessage.addListener(function(msg) {
-		// if 
+		// if
 		if (msg.cb_nonce && cbHandlers[msg.cb_nonce]) {
 			return cbHandlers[msg.cb_nonce](msg);
 		}
@@ -132,7 +132,10 @@ var init = () => {
 		} 
 
 		console.error("unknown message", msg);
-	});	
+	});
+    port.onDisconnect.addListener(function(e) {
+        console.error('>> port disconnected', e);
+    });
 	$('#timeline').bind('DOMSubtreeModified', function(e) {
 	  if (e.target.innerHTML.indexOf('"tweet ') >= 0) { 
 	  	update_dom(); 

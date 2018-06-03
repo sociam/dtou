@@ -5,7 +5,7 @@
 	angular.module('dtouprism')
 		.factory('storagesync', function($log, storage, remote, utils) {
 
-			var DEBUG = false,
+			var DEBUG = utils.debug(),
 				log = $log.instance('storagesync', 'brown');
 
 			if (!DEBUG) { log.disable(); }

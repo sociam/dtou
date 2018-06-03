@@ -7,7 +7,7 @@
 	angular.module('dtouprism')
 		.factory('storage', function (remote, utils, $log) {
 
-			var DEBUG = false,
+			var DEBUG = utils.debug(),
 				log = $log.instance('storage', 'maroon'),
 				PDB_OPTIONS = {
 					// adapter:'websql', 

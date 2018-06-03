@@ -1,7 +1,9 @@
 /* globals _, chrome, angular, extension */
 
 
-angular.module('dtouprism').controller('explore', function($scope, storage, utils, $timeout) {
+var app = angular.module('dtouprism');
+
+app.controller('explore', function($scope, storage, utils, $timeout) {
 	var bg = chrome.extension.getBackgroundPage();
 
 	$scope.serialise = (s) => JSON.stringify(s);
@@ -13,5 +15,9 @@ angular.module('dtouprism').controller('explore', function($scope, storage, util
 	});
 
 	window._s = $scope;
-
 });
+
+app.config(['$compileProvider', function ($compileProvider) {
+    // - later versions of angular will blacklist the chrome-extension scheme
+    $compileProvider.imgSrcSanitizationWhitelist(/^\s*(https?|local|data|chrome-extension):/);
+}]);
