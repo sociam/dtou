@@ -1,0 +1,35 @@
+FROM ubuntu:14.04
+MAINTAINER lmok
+
+#
+# - base layer
+#
+ENV HOME /opt
+WORKDIR /opt
+
+RUN apt-get update -qq
+RUN apt-get install -y -qq git curl wget
+
+#
+# - install npm
+#
+RUN apt-get install -y -qq npm
+RUN ln -s /usr/bin/nodejs /usr/bin/node
+
+#
+# - install telehash and run the router (TODO pull version out of bower.json)
+#
+RUN npm config set strict-ssl=false && \
+    npm install git+https://github.com/telehash/telehash-js.git#master
+
+#
+# - other stuff, cache telehash on previous layer so we dont have to reinstall
+#
+RUN npm install express jsonfile body-parser
+
+#
+# - configure router out of git (TODO replace this process w/ something more secure)
+#
+COPY resources/router/index.js /opt/index.js
+ENV DEBUG _
+CMD node index.js
