@@ -30,6 +30,6 @@ RUN npm install express jsonfile body-parser
 #
 # - configure router out of git (TODO replace this process w/ something more secure)
 #
-COPY resources/router/index.js /opt/index.js
+COPY resources/router/* /opt/
 ENV DEBUG _
 CMD node index.js
