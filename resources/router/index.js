@@ -8,7 +8,7 @@ const express   = require('express'),
     app         = express(),
     port        = 3000;
 
-Error.stackTraceLimit = 8;
+// Error.stackTraceLimit = 16;
 
 function BadRequestException(msg, wrapped) {
     var e = Error.call(this, msg);
@@ -35,15 +35,29 @@ var telehashRouter = function(mesh) {
     _telehashRouter.route('/connect')
         .post(function(req, resp, next) {
             // extract the endpoint
-            console.error('--> POST to /connect', req.body);
+            console.log('--> POST to /connect', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /connect missing field: endpoint", {}));
-            var link = mesh.link(req.body.endpoint);
-            // - create link
-            if(!link) return next(new telehashUtils.TelehashException("failed to link to endpoint", {}));
-            link.status(function(e) {
-                if(e) return next(new telehashUtils.TelehashException("telehash link bad status ", e));
-                console.log('--> endpoint: ', req.body.endpoint, ' connected');
-            })
+            telehashUtils.connect(req.body.endpoint, null).then(function(link) {
+                resp.send({
+                    "link": link.json
+                });
+            }).catch(function(e) {
+                return next(e);
+            });
+        });
+
+    // - internal thtp proxy
+    _telehashRouter.route('/data')
+        .post(function(req, resp, next) {
+            // extract the endpoint
+            console.log('--> POST to /data', req.body);
+            if(!req.body.endpoint) return next(new BadRequestException("POST /data missing field: endpoint", {}));
+            if(!req.body.payload) return next(new BadRequestException("POST /data missing field: payload", {}));
+            telehashUtils.fire(req.body.payload, req.body.endpoint).then(function(out){
+                resp.send(out);
+            }).catch(function(e){
+                return next(e);
+            });
         });
 
     return _telehashRouter;
@@ -80,4 +94,4 @@ telehashUtils.id().then(function(id) {
     return telehashUtils.router(id);
 }).then(function(mesh) {
     return bootstrap(mesh);
-});
+}).catch();

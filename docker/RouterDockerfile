@@ -25,7 +25,7 @@ RUN npm config set strict-ssl=false && \
 #
 # - other stuff, cache telehash on previous layer so we dont have to reinstall
 #
-RUN npm install express jsonfile body-parser
+RUN npm install express jsonfile body-parser concat-stream event-stream
 
 #
 # - configure router out of git (TODO replace this process w/ something more secure)
