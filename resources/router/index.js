@@ -1,12 +1,13 @@
 // - TODO refactor this to use a+ promises
 
 // - simple server w/ api for interacting with local telehash endpoint
-const express   = require('express'),
-    bp          = require('body-parser'),
-    telehashUtils    = require('./telehashUtils'),
-    cfg         = '/opt/dtou_router.json',
-    app         = express(),
-    port        = 3000;
+const express       = require('express'),
+    bp              = require('body-parser'),
+    telehashUtils   = require('./telehashUtils'),
+    url             = require('url'),
+    cfg             = '/opt/dtou_router.json',
+    app             = express(),
+    port            = 80;
 
 // Error.stackTraceLimit = 16;
 
@@ -31,13 +32,29 @@ var telehashRouter = function(mesh) {
             });
         });
 
+    // - get link info
+    _telehashRouter.route('/links')
+        .get(function(req, resp, next) {
+            resp.send(telehashUtils.links());
+        });
+
     // - connect to another telehash endpoint
     _telehashRouter.route('/connect')
         .post(function(req, resp, next) {
             // extract the endpoint
             console.log('--> POST to /connect', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /connect missing field: endpoint", {}));
-            telehashUtils.connect(req.body.endpoint, null).then(function(link) {
+            var endpoint = req.body.endpoint;
+            var fun = telehashUtils.connect;
+            try {
+                var parsed = url.parse(req.body.endpoint);
+                if (parsed.hostname) {
+                    endpoint = parsed.hostname;
+                    fun = telehashUtils.init;
+                }
+            } catch (e) {}
+
+            fun(endpoint).then(function(link) {
                 resp.send({
                     "link": link.json
                 });

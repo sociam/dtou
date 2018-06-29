@@ -1,9 +1,11 @@
 // - cfg is the router config; linkCache is json file of cached link
 // - if TH_CACHE in env is anything but true then ignore cfg and linkCache
 // - use `docker run -e "TH_CACHE=true"`
+// - might want to use docker build -t lmok/dtou-router:dev -f docker/RouterDockerfile . && docker run -it -v ~/.dtou:/mnt/dtou --network=host lmok/dtou-router:dev
 const telehash      = require('telehash'),
     fs              = require('fs'),
     http            = require('http'),
+    url             = require('url'),
     cs              = require('concat-stream'),
     es              = require('event-stream'),
     cfgFile         = '/mnt/dtou/th_router.json',
@@ -13,7 +15,10 @@ const telehash      = require('telehash'),
 
 telehash.log({debug:console.log});
 
+// - central mesh obj
 var mesh = null;
+// - DTOU-specific router location
+var dtouRouter = null;
 
 function TelehashException(msg, wrapped, status) {
     var e = Error.call(this, (wrapped) ? (msg, wrapped.message) : msg);
@@ -27,7 +32,7 @@ function TelehashException(msg, wrapped, status) {
 var _linkStatus = function(status, link) {
     console.log('--> [link]', link.hashname, 'status:', (status) ? status : 'established');
     // - i dont like this anymore than you...
-    if(!link.up || status === 'all pipes are down') {
+    if(status === 'all pipes are down') {
         console.log('--> [link]', link.hashname, 'closing');
         link.close();
     }
@@ -60,6 +65,18 @@ var _id = function () {
         }
     });
 };
+
+// - helper function to retrieve active links
+var _links = function() {
+    if(mesh){
+        return mesh.links.map(function(link, index){
+            return link.json;
+        }).filter(function(link) {
+            return link.hashname != mesh.hashname;
+        });
+    }
+    return {};
+}
 
 // - use thtp to communicate json payloads
 // - build proxies with a DTOU event handler (must take a JSON payload)
@@ -97,7 +114,7 @@ var _streamHandlerGen = function(dtouHandler) {
     }
 }
 
-// - router init
+// - bring up a routing mesh on this instance
 var _router = function(endpoint, dtouHandler) {
     // - create mesh; block on the promise if needed
     return new Promise(function(resolve, reject) {
@@ -231,9 +248,48 @@ var _outThtp = function(payload, endpoint, dtouHandler) {
     })
 }
 
+// - point this instance to the central DTOU router
+var _init = function(addr) {
+    return new Promise(function(resolve, reject) {
+        // - first, get router hints from the addr
+        console.log(addr);
+        var opts = {
+            host: addr,
+            path: '/telehash/router'
+        }
+        http.request(opts, function(resp) {
+            resp.pipe(cs(function(body) {
+                var payload = JSON.parse(body.toString());
+                if(!payload.mesh){
+                    console.log(payload);
+                    reject(new TelehashException('malformed router info', {}));
+                }
+                console.log('--> [thtp] DTOU router located', payload.mesh);
+                resolve(payload.mesh);
+            }));
+        }).end();
+    }).then(function(endpoint){
+        // - need to update hints if behind a vpc
+        var mapped = endpoint.paths.map(function(path) {
+            if (path.ip) {
+                path.ip = addr;
+            }
+            if (path.url) {
+                var parsed = url.parse(path.url);
+                // - TODO make this not a string hack
+                path.url = parsed.protocol + '://' + addr + ':' + parsed.port + '/';
+            }
+            return path;
+        });
+        endpoint.paths = mapped;
+        return _connect(endpoint);
+    });
+
+}
+
 // - handler for shutdowns; cleanly close links
-var _handler = function(sig) {
-    if(mesh) {
+var _handler = function(sig){
+    if(mesh){
         console.log('--> [EXIT]', sig);
         console.log('--> closing all links: ', mesh.links.map(function(l) {
             l.close();
@@ -255,8 +311,14 @@ module.exports = {
     router: function(endpoint) {
         return _router(endpoint);
     },
+    init: function(addr) {
+        return _init(addr);
+    },
     connect: function(endpoint) {
         return _connect(endpoint);
+    },
+    links: function() {
+        return _links();
     },
     fire: function(payload, endpoint, dtouHandler) {
         if (payload.thtp) return _outThtp(payload, endpoint, dtouHandler);
