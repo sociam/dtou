@@ -34,9 +34,13 @@
 				<!-- <pre ng-bind="selected.id"></pre> -->
 				<div ng-bind-html="::selectedHtml"></div>
 			</div>
+			<!--<table>-->
+				<!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
+			<!--</table>-->
 			<table>
 				<tr><td>Substitute Content</td><td><input type="checkbox" ng-model="ui.substitute"></td><td class='value'><input type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td></tr>
-				<tr><td>Cryptographically sign</td><td><input type="checkbox" ng-bind="ui.sign"></td><td class='value' ng-bind="ui.sign ? 'sign' : 'not signed'"></td></tr>
+				<tr><td>Enable Pingbacks</td><td><input type="checkbox" ng-model="ui.pingback"></td><td class='value' ng-bind="ui.pingback ? 'enabled' : 'disabled'"></tr>
+				<tr><td>Cryptographically Sign</td><td><input type="checkbox" ng-bind="ui.sign"></td><td class='value' ng-bind="ui.sign ? 'signed' : 'not signed'"></td></tr>
 			</table>
 			<button class="btn" ng-click="save()">Save</button>
 		</div>

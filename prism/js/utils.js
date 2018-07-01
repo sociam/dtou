@@ -20,17 +20,27 @@
 			WS: '/socket.io/'
 		},
 
-		SERVER = undefined; // PRODUCTION_SERVER; // BETA_SERVER; // DEBUG_SERVER
+		SERVER = undefined, // PRODUCTION_SERVER; // BETA_SERVER; // DEBUG_SERVER
+
+		// - TODO make this configurable
+		DTOU_CTR = '192.168.99.100',
+		DTOU_ROUTER = '52.90.1.84';
 
 	angular
 		.module('dtouprism').factory('utils', function ($injector, $timeout) {
 			var utils = {
-					REMOTE_SERVER_URL: SERVER && SERVER.MAIN || undefined,
-					REMOTE_WS_BASE: SERVER && SERVER.BASEWS || undefined,
-					REMOTE_WS_PATH: SERVER && SERVER.WS || undefined,
-					TWENTY_FOUR_HOURS_USEC: 24 * 60 * 60 * 1000,
+                    REMOTE_SERVER_URL: SERVER && SERVER.MAIN || undefined,
+                    REMOTE_WS_BASE: SERVER && SERVER.BASEWS || undefined,
+                    REMOTE_WS_PATH: SERVER && SERVER.WS || undefined,
+                    TWENTY_FOUR_HOURS_USEC: 24 * 60 * 60 * 1000,
                     debug: function() {
-					    return DEBUG;
+                        return DEBUG;
+                    },
+                    dtou_ctr: function() {
+                        return DTOU_CTR;
+                    },
+                    dtou_router: function() {
+                        return DTOU_ROUTER;
                     },
 					getFactory: function (factoryName) {
 						return $injector.get(factoryName);

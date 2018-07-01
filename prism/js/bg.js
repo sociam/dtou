@@ -1,7 +1,7 @@
 /* globals _, chrome, angular */
 
 
-angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
+angular.module('dtouprism').controller('bg', function($scope, storage, utils, data) {
 
 	console.log('DTOU Prism 1.0!');
 
@@ -57,7 +57,36 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 		announce,
 		makeAnnounce = (port) => {
 			return (obj) => port.postMessage(obj);
-		};
+		},
+		setConf = (blob) => {
+			// - helper function to configure some opts
+            return new Promise(function(resolve, reject) {
+                chrome.storage.local.get(['dtouprism_conf'], function(result) {
+                    if(!blob) return resolve(result.dtouprism_conf);
+                    var updated = _.merge(result.dtouprism_conf, blob);
+                    chrome.storage.local.set({'dtouprism_conf': updated}, function(){
+                        resolve(updated);
+                    });
+                });
+            });
+		},
+        getConf = () => {
+	        return new Promise(function(resolve, reject) {
+	            chrome.storage.local.get(['dtouprism_conf'], function(result) {
+	                resolve(result.dtouprism_conf);
+                })
+            })
+        };
+
+	chrome.storage.onChanged.addListener(function(changes, namespace) {
+        for (key in changes) {
+            if (key === 'dtouprism_conf'){
+                var updated = changes[key];
+                conf = updated.newValue;
+                console.log('>> updated conf', conf);
+            }
+        }
+	});
 
 	chrome.runtime.onConnect.addListener((p) => {
 		port = p;
@@ -82,12 +111,25 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils) {
 		});
 	});
 
+	if(!getConf()) {
+        setConf({
+            dtou_ctr: utils.dtou_ctr(),
+            dtou_router: utils.dtou_router()
+        });
+    };
+
+	getConf().then(function(res){
+	    console.log('loaded conf', res);
+    })
+
 	console.log('ok');
 
 	// window._utils = utils;
 
 	// exports
+    window.getConf = getConf;
+    window.setConf = setConf;
+    window.getEnabledContentPages = getEnabledContentPages;
 	window._st = storage;
-
 
 });

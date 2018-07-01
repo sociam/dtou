@@ -38,6 +38,14 @@ angular.module('dtouprism')
                     dtou.substitute = true;  
                     dtou.substituteHtml = ui.substituteHtml;
                 }
+
+                if (ui.pingback) {
+                    dtou.pingback = true;
+                }
+
+                if (ui.sign) {
+                    // TODO - implement crypto
+                }
                 m.set('dtou', dtou);
                 $scope.selected.save().then(() => { console.log(`model updated ${m.id}`, dtou);});
             }
