@@ -13,19 +13,33 @@ RUN apt-get install -y -qq git curl wget
 #
 # - install npm
 #
-RUN apt-get install -y -qq npm
+RUN curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+RUN sudo apt-get install -y -qq nodejs=0.10.* npm build-essential libtool m4 automake
 RUN ln -s /usr/bin/nodejs /usr/bin/node
 
 #
-# - install telehash and run the router (TODO pull version out of bower.json)
+# - other stuff, cache telehash layer so we dont have to reinstall
 #
-RUN npm config set strict-ssl=false && \
-    npm install git+https://github.com/telehash/telehash-js.git#master
+RUN npm config set strict-ssl=false
+RUN npm install express jsonfile body-parser concat-stream event-stream
 
 #
-# - other stuff, cache telehash on previous layer so we dont have to reinstall
+# - install telehash
 #
-RUN npm install express jsonfile body-parser concat-stream event-stream
+#RUN npm config set strict-ssl=false && \
+RUN npm install git+https://github.com/telehash/telehash-js.git#master
+#RUN npm install ursa ecc telehash
+
+#
+# - i kid you not pdb and thjs require different versions of node
+#   (respectively because of ecc & ursa, ~0.10.x, and leveldown, >4.x
+#
+#ADD https://github.com/pouchdb/pouchdb/releases/download/7.0.0/pouchdb-7.0.0.js /opt/
+#RUN rm /usr/bin/node
+RUN sudo npm cache clean -f &&\
+    sudo npm install -g n &&\
+    sudo n stable
+RUN npm install --save pouchdb pouchdb-upsert
 
 #
 # - configure router out of git (TODO replace this process w/ something more secure)
