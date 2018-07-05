@@ -8,6 +8,7 @@ app.controller('popup', ($scope, $timeout) => {
     bg.getConf().then(function(res){
         $scope.dtou_ctr = res.dtou_ctr;
         $scope.dtou_router = res.dtou_router;
+        $scope.dtou_storage = res.storage_location;
     });
 
 	chrome.storage.onChanged.addListener(function(changes, namespace) {
@@ -16,6 +17,7 @@ app.controller('popup', ($scope, $timeout) => {
                 var updated = changes[key];
                 $scope.dtou_ctr = updated.newValue.dtou_ctr;
                 $scope.dtou_router = updated.newValue.dtou_router;
+                $scope.dtou_storage = updated.newVale.storage_location;
             }
         }
     });
@@ -27,7 +29,8 @@ app.controller('popup', ($scope, $timeout) => {
     $scope.save = () => {
         bg.setConf({
             dtou_ctr: $scope.dtou_ctr,
-            dtou_router: $scope.dtou_router
+            dtou_router: $scope.dtou_router,
+            storage_location: $scope.dtou_storage
 		});
     };
 

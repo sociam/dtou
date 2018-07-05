@@ -1,18 +1,20 @@
 /* globals _, chrome, angular */
 
 
-angular.module('dtouprism').controller('bg', function($scope, storage, utils, data) {
+angular.module('dtouprism').controller('bg', function($scope, storage, utils, data, $location) {
 
 	console.log('DTOU Prism 1.0!');
 
 	var enabled_prisms = {},
 		port,
+        conf,
 		unpackLSArr = (str) => {
 			if (str && str.length) { 
 				return str.split(',').map((x) => parseInt(x));
 			}
 			return [];
-		}, makeHandlers = (port) => ({
+		},
+        makeHandlers = (port) => ({
 			'openTab':(msg) => {
 				console.log('got OpenTab message from contentscript >> ', msg);
 				chrome.tabs.create(_.pickBy(msg, (v,k) => k !== 'cmd'));
@@ -24,12 +26,12 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
 			    // chrome.tabs.create({ url: chrome.extension.getURL('create.html') + '?' + jQuery.params(itemspec) });
 			},
 			'get_model': (id) => {
-				return storage.getCollection('items').then((collection) => {
+				return getCollectionWrapped('items').then((collection) => {
 					return collection.get(id);
 				});
 			},
 			'save': (o) => {
-				storage.getCollection('items').then((collection) => {
+				getCollectionWrapped('items').then((collection) => {
 					var m = collection.get(""+o.data.id);
 					// console.log('yo .. ', m);
 					if (m === undefined) {
@@ -49,34 +51,25 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
 					}
 				});
 			}
-		}), setEnableContentPage = (page,val) => {
+		}),
+        setEnableContentPage = (page,val) => {
 			console.log('setting ', page, ' to ', val);
 			enabled_prisms[page] = val;
 			announce({type:'event', evt:'togglecp', page:page, val: val });
-		}, getEnabledContentPages = () => enabled_prisms,
+		},
+        getEnabledContentPages = () => enabled_prisms,
+        getCollectionWrapped = (name, override) => {
+	        if(conf.storage_location && !override){
+	            // - TODO make this not a hack
+                var stripped = conf.storage_location.replace(/^\/|\/$/g, '');
+	            return storage.getCollection(_.join([stripped, name], '/'));
+            }
+	        return storage.getCollection(name);
+        },
 		announce,
 		makeAnnounce = (port) => {
 			return (obj) => port.postMessage(obj);
-		},
-		setConf = (blob) => {
-			// - helper function to configure some opts
-            return new Promise(function(resolve, reject) {
-                chrome.storage.local.get(['dtouprism_conf'], function(result) {
-                    if(!blob) return resolve(result.dtouprism_conf);
-                    var updated = _.merge(result.dtouprism_conf, blob);
-                    chrome.storage.local.set({'dtouprism_conf': updated}, function(){
-                        resolve(updated);
-                    });
-                });
-            });
-		},
-        getConf = () => {
-	        return new Promise(function(resolve, reject) {
-	            chrome.storage.local.get(['dtouprism_conf'], function(result) {
-	                resolve(result.dtouprism_conf);
-                })
-            })
-        };
+		};
 
 	chrome.storage.onChanged.addListener(function(changes, namespace) {
         for (key in changes) {
@@ -111,25 +104,31 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
 		});
 	});
 
-	if(!getConf()) {
-        setConf({
+	utils.getConf().then(function(res){
+	    var defaults = {
             dtou_ctr: utils.dtou_ctr(),
-            dtou_router: utils.dtou_router()
+            dtou_router: utils.dtou_router(),
+            storage_location: utils.storage_location(),
+        };
+	    utils.setConf(_.merge(defaults, res)).then(function(updated){
+	        conf = updated;
+            console.log('loaded conf', updated);
         });
-    };
-
-	getConf().then(function(res){
-	    console.log('loaded conf', res);
-    })
+    });
 
 	console.log('ok');
 
 	// window._utils = utils;
 
 	// exports
-    window.getConf = getConf;
-    window.setConf = setConf;
+    window.getConf = function(){
+        // - cached conf to make this faster
+        return new Promise(function(resolve, reject){resolve(conf)});
+    };
+    window.setConf = utils.setConf;
     window.getEnabledContentPages = getEnabledContentPages;
-	window._st = storage;
+    // - wrap the storage shim with remote pdb
+    window.getCollectionWrapped = getCollectionWrapped;
+	// window._st = storage;
 
 });

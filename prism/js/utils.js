@@ -23,8 +23,9 @@
 		SERVER = undefined, // PRODUCTION_SERVER; // BETA_SERVER; // DEBUG_SERVER
 
 		// - TODO make this configurable
-		DTOU_CTR = '192.168.99.100',
-		DTOU_ROUTER = '52.90.1.84';
+		DTOU_CTR = 'http://192.168.99.100:80',
+		DTOU_ROUTER = 'http://52.90.1.84',
+        STORAGE_LOC = 'http://192.168.99.100:5984';
 
 	angular
 		.module('dtouprism').factory('utils', function ($injector, $timeout) {
@@ -41,6 +42,28 @@
                     },
                     dtou_router: function() {
                         return DTOU_ROUTER;
+                    },
+                    storage_location: function() {
+                        return STORAGE_LOC;
+                    },
+                    setConf: function(blob) {
+                        // - helper function to configure some opts
+                        return new Promise(function(resolve, reject) {
+                            chrome.storage.local.get(['dtouprism_conf'], function(result) {
+                                if(!blob) return resolve(result.dtouprism_conf);
+                                var updated = _.merge(result.dtouprism_conf, blob);
+                                chrome.storage.local.set({'dtouprism_conf': updated}, function(){
+                                    resolve(updated);
+                                });
+                            });
+                        });
+                    },
+                    getConf: function() {
+                        return new Promise(function(resolve, reject) {
+                            chrome.storage.local.get(['dtouprism_conf'], function(result) {
+                                resolve(result.dtouprism_conf);
+                            })
+                        })
                     },
 					getFactory: function (factoryName) {
 						return $injector.get(factoryName);
