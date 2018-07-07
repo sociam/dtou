@@ -21,7 +21,7 @@ RUN ln -s /usr/bin/nodejs /usr/bin/node
 # - other stuff, cache telehash layer so we dont have to reinstall
 #
 RUN npm config set strict-ssl=false
-RUN npm install express jsonfile body-parser concat-stream event-stream
+#RUN npm install express jsonfile body-parser concat-stream event-stream
 
 #
 # - install telehash
@@ -39,7 +39,7 @@ RUN npm install git+https://github.com/telehash/telehash-js.git#master
 RUN sudo npm cache clean -f &&\
     sudo npm install -g n &&\
     sudo n stable
-RUN npm install --save pouchdb pouchdb-upsert
+RUN npm install --save express jsonfile body-parser concat-stream event-stream pouchdb pouchdb-upsert lodash
 
 #
 # - configure router out of git (TODO replace this process w/ something more secure)
