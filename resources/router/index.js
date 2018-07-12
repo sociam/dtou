@@ -21,6 +21,21 @@ function BadRequestException(msg, wrapped) {
     return e;
 }
 
+// - convenience function to wrap connection bootstrapping
+var _connectWithPrep = function(req, resp, next, thUtils) {
+    var endpoint = req.body.endpoint;
+    var fun = thUtils.connect;
+    try {
+        var parsed = url.parse(req.body.endpoint);
+        if (parsed.hostname) {
+            endpoint = parsed.hostname;
+            fun = thUtils.bootstrap;
+        }
+    } catch (e) {}
+
+    return fun(endpoint);
+}
+
 var telehashRouter = function(thUtils) {
     // - express router for telehash rpcs
     var _telehashRouter = express.Router();
@@ -46,17 +61,7 @@ var telehashRouter = function(thUtils) {
             // extract the endpoint
             console.log('--> POST to /connect', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /connect missing field: endpoint", {}));
-            var endpoint = req.body.endpoint;
-            var fun = thUtils.connect;
-            try {
-                var parsed = url.parse(req.body.endpoint);
-                if (parsed.hostname) {
-                    endpoint = parsed.hostname;
-                    fun = thUtils.bootstrap;
-                }
-            } catch (e) {}
-
-            fun(endpoint).then(function(link) {
+            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
                 resp.send({
                     "link": link.json
                 });
@@ -86,21 +91,31 @@ var dtouRouter = function(thUtils) {
     var _dtouRouter = express.Router();
 
     // - uses same data model as stored in pdb for convenience
-    _dtouRouter.route('/definition')
+    _dtouRouter.route('/definitions')
         .post(function(req, resp, next) {
-            if (req.body.type === 'tweet') {
-                // - TODO make this more generic for not only thtp
-                if(!req.body.endpoint) {
-                    return next(new BadRequestException("POST /data missing field: endpoint", {}));
-                }
-                var updated = dtouUtils.inboundController(req.body);
-                thUtils.fire(updated, req.body.endpoint).then(function(out) {
-                    resp.send(out);
-                }).catch(function(e){
-                    next(e);
-                });
-            }
-            else next(new BadRequestException('POST /dtou/definitions bad field: type'));
+            // - TODO make this more generic for media besides thtp
+            if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
+            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
+                var updated = dtouUtils.outboundCheckDtou(req.body.payload);
+                return thUtils.fire(updated, req.body.endpoint);
+            }).then(function(out){
+                resp.send(out);
+            }).catch(function(e) {
+                return next(e);
+            });
+        });
+
+    _dtouRouter.route('/process')
+        .post(function(req, resp, next) {
+            if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
+            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
+                var updated = dtouUtils.outboundProcessDtou(req.body.payload);
+                return thUtils.fire(updated, req.body.endpoint);
+            }).then(function(out){
+                resp.send(out);
+            }).catch(function(e) {
+                return next(e);
+            });
         });
 
     return _dtouRouter;
@@ -110,13 +125,19 @@ var dtouRouter = function(thUtils) {
 // - cb for actually running the app
 // - if running the docker container, use docker run -p 8080:3000 or equiv
 var bootstrap = function() {
-    const thUtils = telehashUtils.instance().then(function(thUtils){
+    const thUtils = telehashUtils.instance(dtouUtils.inboundController).then(function(thUtils){
         // - we're using json
         app.use(bp());
 
         // - register th router
         const _telehashRouter = telehashRouter(thUtils),
             _dtouRouter = dtouRouter(thUtils);
+
+        app.use(function(req, res, next) {
+            res.header("Access-Control-Allow-Origin", "*");
+            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+            next();
+        });
 
         app.use('/telehash', _telehashRouter);
         app.use('/dtou', _dtouRouter);

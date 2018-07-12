@@ -31,16 +31,19 @@ angular.module('dtouprism')
             if ($scope.selected && $scope.ui) {
                 var m = $scope.selected,
                     attr = m.attributes,
-                    dtou = attr.dtou || {},
+                    dtou = attr.dtou || {
+                        definitions: {},
+                        secrets:    {}
+                    },
                     ui = $scope.ui;
 
                 if (ui.substitute) {  
-                    dtou.substitute = true;  
-                    dtou.substituteHtml = ui.substituteHtml;
+                    dtou.definitions.substitute = true;
+                    dtou.secrets.substituteHtml = ui.substituteHtml;
                 }
 
                 if (ui.pingback) {
-                    dtou.pingback = true;
+                    dtou.definitions.pingback = true;
                 }
 
                 if (ui.sign) {

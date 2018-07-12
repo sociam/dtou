@@ -3,6 +3,9 @@ const storageUtils  = require('./storageUtils'),
     commands        = {
         get_defs: 'get_defs',
         process_dtous: 'process_dtous'
+    },
+    dtouTypes       = {
+        tweet:  'tweet'
     };
 
 function DtouException(msg, wrapped, status) {
@@ -33,22 +36,29 @@ var handlers = {
     },
     outboundCheckDtou = function(blob) {
         // - A asks entity owner B for entity's dtous; handle said dtous
-        if(blob.cmd) throw new DtouException('blob already had cmd block', blob);
+        if(!blob.type) throw new DtouException('dtou blob missing field: type');
+        if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
         _.merge(blob, {cmd: commands.get_defs});
         return blob;
     },
     _inboundCheckDtou = function(blob) {
         // - B processes incoming request for dtou definitions from A, send them out
-        if (blob.type === 'tweet') {
+        if (blob.type === dtouTypes.tweet) {
+            if(!blob._id) throw new DtouException('blob missing field: _id');
             return storageUtils.get(blob._id).then(function(got){
-                return {dtou: got.dtou};
+                if(got.dtou) got.dtou.secrets = {};
+                return got;
             });
         }
     },
-    outboundProcessDtou = function() {
-        // - A acks dtous + ask for further operations on B's data
+    outboundProcessDtou = function(blob) {
+        // - A selects dtous + ask for further operations on B's data wrt dtous
+        if(!blob.type) throw new DtouException('dtou blob missing field: type');
+        if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
+        _.merge(blob, {cmd: commands.process_dtous});
+        return blob;
     },
-    _inboundProcessDtou = function() {
+    _inboundProcessDtou = function(blob) {
         // - B releases data
     },
     inboundController = function(blob) {
@@ -56,12 +66,14 @@ var handlers = {
         if(blob.cmd === commands.get_defs) {
             return _inboundCheckDtou(blob);
         } else if (blob.cmd === commands.process_dtous){
-
+            return _inboundProcessDtou(blob);
         } else {
             throw new DtouException('blob has weird cmd block', blob);
         }
     };
 
 module.exports = {
+    outboundCheckDtou: outboundCheckDtou,
+    outboundProcessDtou: outboundProcessDtou,
     inboundController: inboundController
 }

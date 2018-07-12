@@ -3,62 +3,126 @@
 
 (function () {
     angular.module('dtouprism')
-        .factory('th_data', function(utils) {
+        .factory('thdata', function(utils, $http) {
+            var DEBUG   = utils.debug(),
+                token   = 'dtou-thjs',
+                headers = {
+                'content-type': 'application/json'
+            };
 
-            var DEBUG = utils.debug();
-            if (DEBUG) {
-                telehash.debug(function(){console.log.apply(console,arguments)});
-            }
+            var endpointToIdentifier = function(endpoint) {
+                if(!endpoint.mesh.hashname) return 'ERROR --> check console';
+                return token + ' ' + endpoint.mesh.hashname;
+            };
 
-            // - cache generated endpoint identifier & retrieve
-            // - TODO move this elsewhere as chrome storage isn't encrypted
-            var _id = chrome.storage.local.get(["th_id"], function(loaded){
-                if(!loaded.th_id) {
-                    telehash.generate(function (err, generated) {
-                        if(e) {
-                            return console.log("--> endpoint generation failed", e);
-                        }
-                        chrome.storage.local.set({"th_id": generated});
-                        loaded.th_id = generated;
-                    })
-                }
-                return loaded.th_id;
-            });
-
-            // - initialise mesh w/ our endpoint
-            // - TODO we're routing everything for now
-            var _mesh = telehash.mesh({id: id}, function(e, created){
-                if(e) {
-                    return console.log("--> mesh failed to initialize", e);
-                }
-                console.log('--> mesh created. path #: ', created.json().paths.length, ', uri:', created.uri());
-
-                // - use this mesh as a router for inbound links (accept all)
-                created.router(true);
-                created.discover(true);
-                created.accept = function(inc) {
-                    console.log('--> incoming from', inc.hashname);
-                    // - establishes link from any incoming req
-                    var link = created.link(inc);
-                }
-            });
-
-            // - given another endpoint, create an outbound link in this mesh with a router
-            var _connect = function(endpoint) {
-                var link = mesh.link(endpoint)
-                // - note following callback is invoked when link status changes; err if down
-                link.status(function(err){
-                    if(err) {
-                        console.log('--> disconnected from endpoint', endpoint ,err);
-                        // - TODO attempt to connect directly
-                        return;
-                    }
-                    console.log('--> connected to endpoint', endpoint);
+            var id = function(local) {
+                return new Promise(function(resolve, reject){
+                   var out = new URL(local);
+                   out.pathname = 'telehash/router';
+                   $http({
+                       method: 'GET',
+                       url: out.href
+                   }).then(function(resp) {
+                       resolve(endpointToIdentifier(resp.data));
+                   }, function(e) {
+                       console.log('>> failed to get thjs id', e)
+                       resolve(endpointToIdentifier({}));
+                   });
                 });
-            }
+            };
 
-            // - singleton
+            var connect = function(local, endpoint) {
+                return new Promise(function (resolve, reject) {
+                    var out = new URL(local);
+                    out.pathname = 'telehash/connect';
+                    $http({
+                        method: 'POST',
+                        url: out.href,
+                        headers: headers,
+                        data: {
+                            endpoint: endpoint
+                        }
+                    }).then(function (resp) {
+                        console.info('>> remote DTOU router connected', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        reject(e);
+                    });
+                });
+            };
+
+            var fire = function(local, endpoint, payload) {
+                return new Promise(function (resolve, reject) {
+                    var out = new URL(local);
+                    out.pathname = 'telehash/data';
+                    $http({
+                        method: 'POST',
+                        url: out.href,
+                        headers: headers,
+                        data: {
+                            endpoint: endpoint,
+                            payload: payload
+                        }
+                    }).then(function (resp) {
+                        console.info('>> thtp payload sent', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        reject(e);
+                    });
+                });
+            };
+
+            var getDefinitions = function(local, endpoint, router, payload) {
+                return connect(local, router).then(function(res){
+                    return new Promise(function(resolve, reject) {
+                        var out = new URL(local);
+                        out.pathname = 'dtou/definitions';
+                        $http({
+                            method: 'POST',
+                            url: out.href,
+                            headers: headers,
+                            data: {
+                                endpoint: endpoint,
+                                payload: payload
+                            }
+                        }).then(function (resp) {
+                            console.info('>> dtou def resp received', resp.data);
+                            resolve(resp.data);
+                        }, function (e) {
+                            console.error('>> failed to get dtou defs', e.data);
+                            resolve(e.data);
+                        });
+                    });
+                })
+            };
+
+            var extractFromText = function(text) {
+                var split = text.split(/\s+/);
+                var hn = split[split.indexOf(token) + 1];
+                if (hn.length != 52) console.warn('>> might have found a weird hash', hn);
+                return hn
+            };
+
             return {
-            }
+                id: function(local) {
+                  console.info('>> getting local id');
+                  return id(local);
+                },
+                // - tell local dtou router to connect to remote endpoint
+                connect: function(local, endpoint) {
+                    console.info('>> connecting to remote DTOU router');
+                    return connect(local, endpoint);
+                },
+                // - establish connection sandwiching a proxy router
+                proxied: function(local, router, endpoint){
+                    console.info('>> connecting to remote DTOU router (proxied)');
+                    return connect(local, router).then(function(res){
+                        return connect(local, endpoint);
+                    });
+                },
+                token: token,
+                extractFromText: extractFromText,
+                getDefinitions: getDefinitions
+            };
         });
 })();

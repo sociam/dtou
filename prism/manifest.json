@@ -35,5 +35,7 @@
   "background": {
     "page": "bg.html", 
     "persistent": true
-  }
+  },
+
+  "web_accessible_resources": ["img/prism.png"]
 }

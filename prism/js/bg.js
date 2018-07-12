@@ -1,7 +1,7 @@
 /* globals _, chrome, angular */
 
 
-angular.module('dtouprism').controller('bg', function($scope, storage, utils, data, $location) {
+angular.module('dtouprism').controller('bg', function($scope, storage, utils, dataLayer, $location) {
 
 	console.log('DTOU Prism 1.0!');
 
@@ -19,9 +19,25 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
 				console.log('got OpenTab message from contentscript >> ', msg);
 				chrome.tabs.create(_.pickBy(msg, (v,k) => k !== 'cmd'));
 			},
-			'get_defs': (msg) => { 
-			   port.postMessage(_(msg).chain().clone().extend({ids: unpackLSArr(localStorage[msg.type])}).value());
+			'get_defs': (msg) => {
+			    port.postMessage(_.extend(
+			        _(msg).chain().clone().extend({ids: unpackLSArr(localStorage[msg.type])}).value(),
+                    {token: dataLayer.token}));
 			},
+            'get_other_defs': (msg) => {
+                var identifier = dataLayer.extract(msg.payload);
+                console.log('>> getting defs for ', conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
+                return dataLayer.getDefinitions(conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
+            },
+            'get_id': (msg) => {
+			    dataLayer.id(conf.dtou_ctr).then(function(got) {
+                    port.postMessage(_.extend(msg, {id: got}));
+                    // port.postMessage(_(msg).chain().clone().extend({id: got}).value());
+                });
+            },
+            'get_token': (msg) => {
+			    port.postMessage(_.extend(msg, {token: dataLayer.token}));
+            },
 			'make_new_dtou': (itemspec) => {
 			    // chrome.tabs.create({ url: chrome.extension.getURL('create.html') + '?' + jQuery.params(itemspec) });
 			},
@@ -129,6 +145,7 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
     window.getEnabledContentPages = getEnabledContentPages;
     // - wrap the storage shim with remote pdb
     window.getCollectionWrapped = getCollectionWrapped;
+    // window.dataLayer = dataLayer;
 	// window._st = storage;
 
 });

@@ -29,8 +29,6 @@ var _TelehashUtil = function(reqHandler) {
     var mesh = null;
     // - DTOU-specific router location
     var dtouRouter = null;
-    // - request handler for inbound thtp/stream payloads
-    var reqHandler = reqHandler;
 
     // - link status cb
     var _linkStatus = function(status, link) {
@@ -92,12 +90,14 @@ var _TelehashUtil = function(reqHandler) {
                         var payload = JSON.parse(body.toString());
                         console.log('--> [thtp] incoming request', payload);
                         resp.setHeader('Content-Type', 'application/json');
-                        var out = {}
                         if(reqHandler && typeof reqHandler === 'function') {
-                            out = reqHandler(payload);
+                            reqHandler(payload).then(function(out){
+                                resp.end(JSON.stringify(out));
+                            });
+                        } else {
+                            // resp.write(JSON.stringify(out))
+                            resp.end(JSON.stringify({}));
                         }
-                        // resp.write(JSON.stringify(out))
-                        resp.end(JSON.stringify(out));
                     }));
                 }
             });
@@ -317,7 +317,7 @@ var _TelehashUtil = function(reqHandler) {
 
     return new Promise(function(resolve, reject) {
         _id().then(function(id) {
-            return _router(id);
+            return _router(id, reqHandler);
         }).then(function(mesh) {
             resolve({
                 bootstrap: _bootstrap,
@@ -325,8 +325,8 @@ var _TelehashUtil = function(reqHandler) {
                 links: _links,
                 mesh: mesh,
                 fire: function (payload, endpoint, respHandler) {
-                    if (payload.thtp) return outThtp(payload, endpoint, respHandler);
-                    return outStream(payload, endpoint, respHandler);
+                    if (payload.stream) return _outStream(payload, endpoint, respHandler);
+                    return _outThtp(payload, endpoint, respHandler);
                 }
             });
         });

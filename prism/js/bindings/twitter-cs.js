@@ -16,6 +16,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         intersected_tweets,
         profile,
         port,
+        token,
         cbHandlers = {},
         makeAddDToU = (tweet) => {
             return $('<div class="dtou-action-panel"><div class="btn">+</div></div>').on('click',(evt) => {
@@ -31,6 +32,23 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         },
         openTab = (path, tweet) => {
             port.postMessage({cmd:'openTab', url:[path, '?', $.param({id:tweet.id, active:true})].join(''), active:true });
+        },
+        makeBtn = (id, img) => {
+            return '<span class="TweetBoxExtras-item"><div class="dtou-inject">\n' +
+                '  <button class="btn icon-btn js-tooltip dtou-button" id="'+id+'" type="button" style="background-color:transparent" ' +
+                'data-delay="150" data-original-title="Insert DTOU Identifier"><img src="'+img+'" height="24"/></button></div></span>';
+        },
+        addButton = () => {
+            var img = chrome.extension.getURL('img/prism.png');
+
+            $('.home-tweet-box .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-home', img));
+            $('#dtou-button-home').on('click', function() {
+                port.postMessage({cmd:'get_id', loc:'#tweet-box-home-timeline'});
+            });
+            $('.tweet-box-content .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-popup', img));
+            $('#dtou-button-popup').on('click', function() {
+                port.postMessage({cmd:'get_id', loc:'*[aria-labelledby="Tweetstorm-tweet-box-0-label Tweetstorm-tweet-box-0-text-label"]'});
+            });
         },
         addMenu = (tweet, tweetData) => {
             let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
@@ -71,22 +89,27 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 // console.log('askBG get response!!!  >> ', response.data, response.data.dtou);
                 if (!response.data.dtou) return;
                 // - content substitution dtou
-                if (response.data.dtou.substitute) {
+                if (response.data.dtou.definitions.substitute) {
                     var things = $(tweet).find('.js-tweet-text-container p').clone();
                     $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
                     things.addClass('secondLayer');
-                    console.log('askBG >> ', {cmd: 'get_model', id: data.id});
+                    // console.log('askBG >> ', {cmd: 'get_model', id: data.id});
                     window._tweet = tweet;
                     window._response = response;
                     window.things = things;
-                    $(things).html(response.data.dtou.substituteHtml);
+                    $(things).html(response.data.dtou.secrets.substituteHtml);
                     $(tweet).find('.js-tweet-text-container').append(things);
                     // $($(tweet).find('.js-tweet-text-container p')[0]).hide();
                 }
                 // - pingback dtou
-                if (response.data.dtou.pingback) {
+                if (response.data.dtou.definitions.pingback) {
 
                 }
+            });
+        },
+        augmentOther = (tweet, data) => {
+            askBg({cmd:'get_other_defs', id:data.id, payload:data}).then((response) => {
+                if(response.error) return;
             });
         },
         extractTweet = (tweetDOM) => {
@@ -112,14 +135,29 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
 
             // find my own tweets
             // console.log('seeking ', profile.screenName, 'owned tweets :',$('.tweet').filter(function() {  return $(this).data('screen-name') === profile.screenName; }).length);
-            $('.tweet').filter(function() { return $(this).data('screen-name') === profile.screenName; })
+            var findMine = function() {
+                return $(this).data('screen-name') === profile.screenName;
+            };
+            $('.tweet').filter(findMine)
                 .addClass('mine')
                 .map((x,tweet) => {
-                    if ($(tweet).find('li.dtou').length === 0) {
+                    if ($(tweet).find('li.dtou-dropdown').length === 0) {
                         var tweetData = extractTweet(tweet);
                         saveTweet(tweetData);
                         addMenu(tweet, tweetData);
                         augment(tweet, tweetData);
+                    }
+                });
+
+            // - find tweets with dtou augmentation
+            var findOthers = function() {
+                return $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
+            };
+            $('.tweet').filter(findOthers)
+                .map((x,tweet) => {
+                    if ($(tweet).find('li.dtou').length === 0) {
+                        var tweetData = extractTweet(tweet);
+                        augmentOther(tweet, tweetData);
                     }
                 });
 
@@ -132,22 +170,30 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
     var init = () => {
         // connect to the back-end; bg has onConnect listener for receiving messages from this tab
         port = chrome.runtime.connect();
-        port.postMessage({cmd:'get_defs', type:'tweet'});
         port.onMessage.addListener(function(msg) {
             // - unblocks promises that are waiting for the bg central handlers
             if (msg.cb_nonce && cbHandlers[msg.cb_nonce]) {
                 return cbHandlers[msg.cb_nonce](msg);
             }
+            if (msg.cmd === 'get_id') {
+                $(msg.loc).removeClass('is-showPlaceholder');
+                $(msg.loc + ' > div').prepend(msg.id+'\n');
+                return;
+            }
             if (msg.cmd === 'get_defs' && msg.type == 'tweet') {
                 setTweetIds(msg.ids);
+                token = msg.token;
                 return update_dom();
             }
 
             console.error("unknown message", msg);
         });
+        port.postMessage({cmd:'get_defs', type:'tweet'});
         port.onDisconnect.addListener(function(e) {
             console.error('>> port disconnected', e);
         });
+        addButton();
+
         $('#timeline').bind('DOMSubtreeModified', function(e) {
             if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
                 update_dom();
