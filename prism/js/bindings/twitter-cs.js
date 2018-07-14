@@ -30,13 +30,17 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 port.postMessage({cmd:"make_new_dtou", type:"tweet", tweetid:tweetid, tweetcontent:content});
             });
         },
-        openTab = (path, tweet) => {
-            port.postMessage({cmd:'openTab', url:[path, '?', $.param({id:tweet.id, active:true})].join(''), active:true });
+        openTab = (path, tweet, extras) => {
+            port.postMessage({
+                cmd: 'openTab',
+                url: [path, '?', $.param(_.extend({id:tweet.id, active:true}, extras))].join(''),
+                active: true
+            });
         },
         makeBtn = (id, img) => {
             return '<span class="TweetBoxExtras-item"><div class="dtou-inject">\n' +
                 '  <button class="btn icon-btn js-tooltip dtou-button" id="'+id+'" type="button" style="background-color:transparent" ' +
-                'data-delay="150" data-original-title="Insert DTOU Identifier"><img src="'+img+'" height="24"/></button></div></span>';
+                'data-delay="150" data-original-title="Insert DToU Identifier"><img src="'+img+'" height="24"/></button></div></span>';
         },
         addButton = () => {
             var img = chrome.extension.getURL('img/prism.png');
@@ -53,12 +57,16 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         addMenu = (tweet, tweetData) => {
             let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
             $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
-            $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View DToU Status</button></li>')
-                .on('click', function() { console.log('view status'); openTab('/edit.html', tweetData); $('.dropdown').removeClass('open'); return true; })
-                .prependTo(sel);
-            $(`<li class="dtou-dropdown"><button type="button" class="dropdown-link">Create DToU Declaration</button></li>`)
-                .on('click', function() { console.log('click create dtou '); openTab('/create.html', tweetData);  $('.dropdown').removeClass('open');  return true; })
-                .prependTo(sel);
+            // $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View DToU Status</button></li>')
+            //     .on('click', function() { console.log('view status'); openTab('/edit.html', tweetData); $('.dropdown').removeClass('open'); return true; })
+            //     .prependTo(sel);
+            $(`<li class="dtou-dropdown"><button type="button" class="dropdown-link">View/Modify DToU Declarations</button></li>`)
+                .on('click', function() {
+                    console.log('click create dtou ');
+                    openTab('/create.html', tweetData);
+                    $('.dropdown').removeClass('open');
+                    return true;
+                }).prependTo(sel);
         },
         saveTweet = (twt) => {
             console.log('saving tweet >> ', twt);
@@ -107,9 +115,33 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 }
             });
         },
-        augmentOther = (tweet, data) => {
+        augmentAddMenuOther = (tweet, data) => {
             askBg({cmd:'get_other_defs', id:data.id, payload:data}).then((response) => {
-                if(response.error) return;
+                console.log('got', response);
+                let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
+                $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
+                let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
+                if (!response.data || response.data.error) {
+                    btn.find('button')
+                        .addClass('js-tooltip')
+                        .attr('data-original-title', 'connection error; check DToU settings')
+                        .attr('data-delay', '0');
+                    btn.on('mouseenter', function () {
+                        btn.find('button').addClass('in');
+                        return true;
+                    })
+                        .on('mouseleave', function () {
+                            btn.find('button').removeClass('in');
+                            return true;
+                        })
+                        .prependTo(sel);
+                } else {
+                    btn.on('click', function () {
+                        openTab('/other.html', data, data);
+                        $('.dropdown').removeClass('open');
+                        return true;
+                    }).prependTo(sel);
+                }
             });
         },
         extractTweet = (tweetDOM) => {
@@ -151,13 +183,14 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
 
             // - find tweets with dtou augmentation
             var findOthers = function() {
-                return $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
+                return  $(this).data('screen-name') != profile.screenName &&
+                    $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
             };
             $('.tweet').filter(findOthers)
                 .map((x,tweet) => {
-                    if ($(tweet).find('li.dtou').length === 0) {
+                    if ($(tweet).find('li.dtou-dropdown').length === 0) {
                         var tweetData = extractTweet(tweet);
-                        augmentOther(tweet, tweetData);
+                        augmentAddMenuOther(tweet, tweetData);
                     }
                 });
 

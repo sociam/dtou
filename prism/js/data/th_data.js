@@ -7,8 +7,8 @@
             var DEBUG   = utils.debug(),
                 token   = 'dtou-thjs',
                 headers = {
-                'content-type': 'application/json'
-            };
+                    'content-type': 'application/json'
+                };
 
             var endpointToIdentifier = function(endpoint) {
                 if(!endpoint.mesh.hashname) return 'ERROR --> check console';
@@ -46,7 +46,8 @@
                         console.info('>> remote DTOU router connected', resp.data);
                         resolve(resp.data);
                     }, function (e) {
-                        reject(e);
+                        console.error('>> failed to connect to endpoint', e.data);
+                        resolve(e.data);
                     });
                 });
             };
@@ -73,27 +74,26 @@
             };
 
             var getDefinitions = function(local, endpoint, router, payload) {
-                return connect(local, router).then(function(res){
-                    return new Promise(function(resolve, reject) {
-                        var out = new URL(local);
-                        out.pathname = 'dtou/definitions';
-                        $http({
-                            method: 'POST',
-                            url: out.href,
-                            headers: headers,
-                            data: {
-                                endpoint: endpoint,
-                                payload: payload
-                            }
-                        }).then(function (resp) {
-                            console.info('>> dtou def resp received', resp.data);
-                            resolve(resp.data);
-                        }, function (e) {
-                            console.error('>> failed to get dtou defs', e.data);
-                            resolve(e.data);
-                        });
+                return new Promise(function(resolve, reject) {
+                    var out = new URL(local);
+                    out.pathname = 'dtou/definitions';
+                    $http({
+                        method: 'POST',
+                        url: out.href,
+                        headers: headers,
+                        data: {
+                            endpoint: endpoint,
+                            payload: payload,
+                            router: router
+                        }
+                    }).then(function (resp) {
+                        console.info('>> dtou def resp received', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        console.error('>> failed to get dtou defs', e.data);
+                        resolve(e.data);
                     });
-                })
+                });
             };
 
             var extractFromText = function(text) {
@@ -104,10 +104,6 @@
             };
 
             return {
-                id: function(local) {
-                  console.info('>> getting local id');
-                  return id(local);
-                },
                 // - tell local dtou router to connect to remote endpoint
                 connect: function(local, endpoint) {
                     console.info('>> connecting to remote DTOU router');
@@ -121,6 +117,7 @@
                     });
                 },
                 token: token,
+                id: id,
                 extractFromText: extractFromText,
                 getDefinitions: getDefinitions
             };

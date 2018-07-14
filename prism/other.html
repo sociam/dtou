@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet/less" href="css/create.less">
+    <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.css">
+
+    <script type="text/javascript" src="lib/less/dist/less.js"></script>
+    <script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
+    <script type="text/javascript" src="lib/backbone/backbone.js"></script>
+    <script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
+    <script type="text/javascript" src="lib/angular/angular.js"></script>
+    <script type="text/javascript" src="lib/bootstrap/js/bootstrap.js"></script>"
+
+    <script type="text/javascript" src="js/dtou.js"></script>
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/storage2.js"></script>
+    <script type="text/javascript" src="js/storage2-sync.js"></script>
+    <script type="text/javascript" src="js/remote.js"></script>
+    <script type="text/javascript" src="js/explore.js"></script>
+    <script type="text/javascript" src="js/other.js"></script>
+    <title></title>
+</head>
+<body ng-app="dtouprism" ng-controller="other">
+
+<div class="jumbotron center-block text-center">
+    <img src="img/prism.png" id="logo">
+    <h1> Data Terms of Use (DToU) </h1>
+</div>
+
+<div class="container">
+    <div class="dtoucontrols center-block  row" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
+        <!-- <pre ng-bind="selected.id"></pre> -->
+        <h2>Selected Tweet (Peer):</h2>
+        <div class="well" ng-bind-html="::selectedHtml" ng-show="selected"></div>
+        <div ng-show="!selected">
+            No Entity Selected
+        </div>
+    </div>
+
+    <div class="dtoucontrols center-block row">
+        <h2> Peer DToU Declarations </h2>
+        <!--<table>-->
+        <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
+        <!--</table>-->
+        <table class="table">
+            <tr ng-show="ui.substitute">
+                <td class="col-md-2">Hidden Content</td>
+                <td class="col-md-1"><input type="checkbox" ng-model="ui.substitute"></td>
+                <td class='col-md-9 value'><input class='col-lg-12' type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
+            </tr>
+            <tr ng-show="ui.pingback">
+                <td class="col-md-2">Read-Receipts Required</td>
+                <td class="col-md-1"><input type="checkbox" ng-model="ui.pingback"></td>
+                <td class="col-md-9" class='value' ng-bind="ui.pingback ? 'enabled' : 'disabled'"></td>
+            </tr>
+            <tr ng-show="ui.sign">
+                <td class="col-md-2">Decrypt</td>
+                <td class="col-md-1"><input type="checkbox" ng-bind="ui.sign"></td>
+                <td class="col-md-9" class='value' ng-bind="ui.sign ? 'signed' : 'not signed'"></td>
+            </tr>
+        </table>
+        <button class="btn" ng-click="save()">Use Data</button>
+    </div>
+</div>
+</body>
+</html>
