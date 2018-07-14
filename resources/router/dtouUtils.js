@@ -44,10 +44,12 @@ var handlers = {
     _inboundCheckDtou = function(blob) {
         // - B processes incoming request for dtou definitions from A, send them out
         if (blob.type === dtouTypes.tweet) {
-            if(!blob._id) throw new DtouException('blob missing field: _id');
-            return storageUtils.get(blob._id).then(function(got){
+            if(!blob.id) throw new DtouException('blob missing field: id');
+            return storageUtils.get(blob.id).then(function(got){
                 if(got.dtou) got.dtou.secrets = {};
                 return got;
+            }).catch(function(e) {
+                return {error: e.message};
             });
         }
     },
@@ -63,12 +65,16 @@ var handlers = {
     },
     inboundController = function(blob) {
         // - redirects all inbound messages to the right places
-        if(blob.cmd === commands.get_defs) {
-            return _inboundCheckDtou(blob);
-        } else if (blob.cmd === commands.process_dtous){
-            return _inboundProcessDtou(blob);
-        } else {
-            throw new DtouException('blob has weird cmd block', blob);
+        try {
+            if (blob.cmd === commands.get_defs) {
+                return _inboundCheckDtou(blob);
+            } else if (blob.cmd === commands.process_dtous) {
+                return _inboundProcessDtou(blob);
+            } else {
+                throw new DtouException('blob has weird cmd block', blob);
+            }
+        } catch(e) {
+            return Promise.resolve({error: e});
         }
     };
 

@@ -1,8 +1,8 @@
 version: "3"
 services:
   router:
-    depends_on:
-      - couchdb
+#    depends_on:
+#      - couchdb
     container_name: dtou-router
     image: lmok/dtou-router:dev
     build:
@@ -14,10 +14,10 @@ services:
       - ~/.dtou:/mnt/dtou
     # NOTE: if using ctr as a telehash router on a linux instance, must set network to host
     #       this will also disable depends_on
-    # network_mode: "host"
+    network_mode: "host"
     environment:
       TH_CACHE: "true"
-      PDB_NAME: http://couchdb:5984/items
+      PDB_NAME: http://localhost:5984/items
   couchdb:
     container_name: couchdb
     image: lmok/dtou-couchdb:dev
@@ -28,3 +28,7 @@ services:
       - 5984:5984
     volumes:
       - ~/.dtou/couchdb/data:/opt/couchdb/data
+
+#volumes:
+#  ~/.dtou/couchdb/data:
+#    external: true

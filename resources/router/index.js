@@ -22,18 +22,18 @@ function BadRequestException(msg, wrapped) {
 }
 
 // - convenience function to wrap connection bootstrapping
-var _connectWithPrep = function(req, resp, next, thUtils) {
-    var endpoint = req.body.endpoint;
+var _connectWithPrep = function(endpoint, resp, next, thUtils) {
+    var loc = endpoint;
     var fun = thUtils.connect;
     try {
-        var parsed = url.parse(req.body.endpoint);
+        var parsed = url.parse(endpoint);
         if (parsed.hostname) {
-            endpoint = parsed.hostname;
+            loc = parsed.hostname;
             fun = thUtils.bootstrap;
         }
     } catch (e) {}
 
-    return fun(endpoint);
+    return fun(loc);
 }
 
 var telehashRouter = function(thUtils) {
@@ -61,7 +61,7 @@ var telehashRouter = function(thUtils) {
             // extract the endpoint
             console.log('--> POST to /connect', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /connect missing field: endpoint", {}));
-            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
+            _connectWithPrep(req.body.endpoint, resp, next, thUtils).then(function(link) {
                 resp.send({
                     "link": link.json
                 });
@@ -93,22 +93,27 @@ var dtouRouter = function(thUtils) {
     // - uses same data model as stored in pdb for convenience
     _dtouRouter.route('/definitions')
         .post(function(req, resp, next) {
+            console.log('--> post /definitions', req.body);
             // - TODO make this more generic for media besides thtp
             if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
-            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
-                var updated = dtouUtils.outboundCheckDtou(req.body.payload);
-                return thUtils.fire(updated, req.body.endpoint);
-            }).then(function(out){
-                resp.send(out);
-            }).catch(function(e) {
-                return next(e);
+            _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
+                    var updated = dtouUtils.outboundCheckDtou(req.body.payload);
+                    return thUtils.fire(updated, req.body.endpoint);
+                }).then(function(out){
+                    resp.send(out);
+                }).catch(function(e) {
+                    return next(e);
+            // return thUtils.fire(updated, req.body.endpoint).then(function(out){
+            //     resp.send(out);
+            // }).catch(function(e) {
+            //     return next(e);
             });
         });
 
     _dtouRouter.route('/process')
         .post(function(req, resp, next) {
             if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
-            _connectWithPrep(req, resp, next, thUtils).then(function(link) {
+            _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
                 var updated = dtouUtils.outboundProcessDtou(req.body.payload);
                 return thUtils.fire(updated, req.body.endpoint);
             }).then(function(out){

@@ -186,15 +186,15 @@ var _TelehashUtil = function(reqHandler) {
     var _connect = function(endpoint) {
         return new Promise(function(resolve, reject) {
             var link = mesh.link(endpoint);
-            // - hold for 3s
+            // - hold for 10s
             setTimeout(function(){
                 if(link && link.up) {
                     // - cb for out-link status changes
                     link.status(_linkStatus);
                     return resolve(link);
                 }
-                reject(new TelehashException("failed to link to endpoint (not found?)"), null, 404);
-            }, 3000);
+                reject(new TelehashException("failed to link to endpoint ["+JSON.stringify(endpoint)+"] (not found?)"), null, 404);
+            }, 10000);
         })
     }
 
@@ -248,7 +248,7 @@ var _TelehashUtil = function(reqHandler) {
                 req.end(JSON.stringify(payload));
             }).catch(function(e) {
                 if (e instanceof TelehashException) {
-                    return reject(e)
+                    return reject(e);
                 }
                 reject(new TelehashException('pre-fire connection failure', e));
             });
@@ -298,18 +298,18 @@ var _TelehashUtil = function(reqHandler) {
     }
 
     // - handler for shutdowns; cleanly close links
-    var _handler = function(sig){
-        if(mesh){
-            console.log('--> [EXIT]', sig);
-            console.log('--> closing all links: ', mesh.links.map(function(l) {
-                l.close();
-                return l.hashname;
-            }).join());
-        }
-        process.exit();
-    }
-
-    process.on('exit', _handler.bind(null, 'exit'));
+    // var _handler = function(sig){
+    //     if(mesh){
+    //         console.log('--> [EXIT]', sig);
+    //         console.log('--> closing all links: ', mesh.links.map(function(l) {
+    //             l.close();
+    //             return l.hashname;
+    //         }).join());
+    //     }
+    //     process.exit();
+    // }
+    //
+    // process.on('exit', _handler.bind(null, 'exit'));
     // process.on('SIGINT', _handler.bind(null, 'SIGINT'));
     // process.on('SIGUSR1', _handler.bind(null, 'SIGUSR1'));
     // process.on('SIGUSR2', _handler.bind(null, 'SIGUSR2'));

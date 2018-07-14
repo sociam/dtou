@@ -27,6 +27,7 @@ var _database = function(name, override) {
         };
         db.info(function(e, res) {
             if(e){
+                console.error(e);
                 reject(new PouchException("db init failure", e));
             }
             resolve(db);
