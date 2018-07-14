@@ -18,6 +18,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         port,
         token,
         cbHandlers = {},
+        domLock = new Promise.resolve(),
         makeAddDToU = (tweet) => {
             return $('<div class="dtou-action-panel"><div class="btn">+</div></div>').on('click',(evt) => {
                 // extract id
@@ -91,7 +92,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 port.postMessage(_.extend({cb_nonce:nonce}, data));
             });
         },
-        augment = (tweet, data) => {
+        augment = (tweet, data, cb) => {
             askBg({cmd:'get_model', id:data.id}).then((response) => {
                 // - TODO put this whole blob into dtou_handlers/twitter.js
                 // console.log('askBG get response!!!  >> ', response.data, response.data.dtou);
@@ -113,35 +114,43 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 if (response.data.dtou.definitions.pingback) {
 
                 }
+            }).then((res) => {
+                if (cb && typeof cb === 'function') cb();
+                return res;
             });
         },
-        augmentAddMenuOther = (tweet, data) => {
+        augmentAddMenuOther = (tweet, data, cb) => {
             askBg({cmd:'get_other_defs', id:data.id, payload:data}).then((response) => {
-                console.log('got', response);
-                let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
-                $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
-                let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
-                if (!response.data || response.data.error) {
-                    btn.find('button')
-                        .addClass('js-tooltip')
-                        .attr('data-original-title', 'connection error; check DToU settings')
-                        .attr('data-delay', '0');
-                    btn.on('mouseenter', function () {
-                        btn.find('button').addClass('in');
-                        return true;
-                    })
-                        .on('mouseleave', function () {
-                            btn.find('button').removeClass('in');
+                if ($(tweet).find('li.dtou-dropdown').length === 0) {
+                    console.log('got', response);
+                    let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
+                    $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
+                    let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
+                    if (!response.data || response.data.error) {
+                        btn.find('button')
+                            .addClass('js-tooltip')
+                            .attr('data-original-title', 'connection error; check DToU settings')
+                            .attr('data-delay', '0');
+                        btn.on('mouseenter', function () {
+                            btn.find('button').addClass('in');
                             return true;
                         })
-                        .prependTo(sel);
-                } else {
-                    btn.on('click', function () {
-                        openTab('/other.html', data, data);
-                        $('.dropdown').removeClass('open');
-                        return true;
-                    }).prependTo(sel);
+                            .on('mouseleave', function () {
+                                btn.find('button').removeClass('in');
+                                return true;
+                            })
+                            .prependTo(sel);
+                    } else {
+                        btn.on('click', function () {
+                            openTab('/other.html', data, data);
+                            $('.dropdown').removeClass('open');
+                            return true;
+                        }).prependTo(sel);
+                    }
                 }
+            }).then((res) => {
+                if(cb && typeof cb === 'function') cb();
+                return res;
             });
         },
         extractTweet = (tweetDOM) => {
@@ -159,44 +168,63 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             };
         },
         update_dom = () => {
-            if (profile === undefined) { profile = extract_profile(); }
+            var res;
+            domLock.then(() => {
+                console.info('updating dom');
+                domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
+                if (profile === undefined) {
+                    profile = extract_profile();
+                }
 
-            // visible tweets ...
-            // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));
-            // intersected_tweets = _.intersection(visible_tweets, registered_tweet_ids);
+                // visible tweets ...
+                // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));
+                // intersected_tweets = _.intersection(visible_tweets, registered_tweet_ids);
 
-            // find my own tweets
-            // console.log('seeking ', profile.screenName, 'owned tweets :',$('.tweet').filter(function() {  return $(this).data('screen-name') === profile.screenName; }).length);
-            var findMine = function() {
-                return $(this).data('screen-name') === profile.screenName;
-            };
-            $('.tweet').filter(findMine)
-                .addClass('mine')
-                .map((x,tweet) => {
-                    if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                        var tweetData = extractTweet(tweet);
-                        saveTweet(tweetData);
-                        addMenu(tweet, tweetData);
-                        augment(tweet, tweetData);
-                    }
-                });
+                // find my own tweets
+                // console.log('seeking ', profile.screenName, 'owned tweets :',$('.tweet').filter(function() {  return $(this).data('screen-name') === profile.screenName; }).length);
+                var res2,
+                    augmenting = new Set(),
+                    augLock = new Promise((resolve, reject) => {res2 = resolve}),
+                    rm = (id) => {
+                        augmenting.delete(id);
+                        if(augmenting.size == 0) res2();
+                    },
+                    findMine = function () {
+                        return $(this).data('screen-name') === profile.screenName;
+                    },
+                    findOthers = function () {
+                        return $(this).data('screen-name') != profile.screenName &&
+                            $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
+                    };
 
-            // - find tweets with dtou augmentation
-            var findOthers = function() {
-                return  $(this).data('screen-name') != profile.screenName &&
-                    $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
-            };
-            $('.tweet').filter(findOthers)
-                .map((x,tweet) => {
-                    if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                        var tweetData = extractTweet(tweet);
-                        augmentAddMenuOther(tweet, tweetData);
-                    }
-                });
+                $('.tweet').filter(findMine)
+                    .addClass('mine')
+                    .map((x, tweet) => {
+                        if ($(tweet).find('li.dtou-dropdown').length === 0) {
+                            var tweetData = extractTweet(tweet);
+                            augmenting.add(tweetData.id);
+                            saveTweet(tweetData);
+                            addMenu(tweet, tweetData);
+                            augment(tweet, tweetData, () => {rm(tweetData.id)});
+                        }
+                    });
 
-        }, setTweetIds = (ids) => {
+                // - find tweets with dtou augmentation
+                $('.tweet').filter(findOthers)
+                    .map((x, tweet) => {
+                        if ($(tweet).find('li.dtou-dropdown').length === 0) {
+                            var tweetData = extractTweet(tweet)
+                            augmenting.add(tweetData.id);
+                            augmentAddMenuOther(tweet, tweetData, () => {rm(tweetData.id)});
+                        }
+                    });
+                augLock.then(() => {res()});
+            });
+        },
+        setTweetIds = (ids) => {
             registered_tweet_ids = ids;
-        }, extract_profile = () => {
+        },
+        extract_profile = () => {
             return JSON.parse($("#init-data").attr('value'));
         };
 
@@ -216,23 +244,24 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             if (msg.cmd === 'get_defs' && msg.type == 'tweet') {
                 setTweetIds(msg.ids);
                 token = msg.token;
+                if (msg.init){
+                    $('#timeline').bind('DOMSubtreeModified', function(e) {
+                        if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
+                            update_dom();
+                        }
+                        //  if (e.target.innerHTML.length > 0) { update_dom(); }
+                    });
+                }
                 return update_dom();
             }
 
-            console.error("unknown message", msg);
+            console.error("unknown message", msg, cbHandlers);
         });
-        port.postMessage({cmd:'get_defs', type:'tweet'});
+        port.postMessage({cmd:'get_defs', type:'tweet', init: true});
         port.onDisconnect.addListener(function(e) {
             console.error('>> port disconnected', e);
         });
         addButton();
-
-        $('#timeline').bind('DOMSubtreeModified', function(e) {
-            if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
-                update_dom();
-            }
-            //  if (e.target.innerHTML.length > 0) { update_dom(); }
-        });
     };
 
     init();

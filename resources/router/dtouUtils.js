@@ -38,16 +38,18 @@ var handlers = {
         // - A asks entity owner B for entity's dtous; handle said dtous
         if(!blob.type) throw new DtouException('dtou blob missing field: type');
         if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
-        _.merge(blob, {cmd: commands.get_defs});
-        return blob;
+        if(blob.type === dtouTypes.tweet){
+            var slim = _.omit(blob, ['text', 'html', 'conversationId']);
+            return Promise.resolve(_.merge(slim, {cmd: commands.get_defs}));
+        }
     },
     _inboundCheckDtou = function(blob) {
         // - B processes incoming request for dtou definitions from A, send them out
-        if (blob.type === dtouTypes.tweet) {
+        if(blob.type === dtouTypes.tweet) {
             if(!blob.id) throw new DtouException('blob missing field: id');
             return storageUtils.get(blob.id).then(function(got){
                 if(got.dtou) got.dtou.secrets = {};
-                return got;
+                return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
             }).catch(function(e) {
                 return {error: e.message};
             });
@@ -57,8 +59,7 @@ var handlers = {
         // - A selects dtous + ask for further operations on B's data wrt dtous
         if(!blob.type) throw new DtouException('dtou blob missing field: type');
         if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
-        _.merge(blob, {cmd: commands.process_dtous});
-        return blob;
+        return Promise.resolve(_.merge(blob, {cmd: commands.process_dtous}));
     },
     _inboundProcessDtou = function(blob) {
         // - B releases data

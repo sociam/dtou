@@ -24,6 +24,11 @@ angular.module('dtouprism')
 
         if (medium === media.telehash){
             return _.extend(utils, {
+                init: function(payload) {
+                    return thdata.connect(payload.local, payload.endpoint).catch(function(e){
+                        console.warn('dataLayer init failure', e);
+                    });
+                },
                 id: function(local) {
                     return thdata.id(local);
                 },

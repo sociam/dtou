@@ -25,7 +25,7 @@
                    }).then(function(resp) {
                        resolve(endpointToIdentifier(resp.data));
                    }, function(e) {
-                       console.log('>> failed to get thjs id', e)
+                       console.warn('>> failed to get thjs id', e)
                        resolve(endpointToIdentifier({}));
                    });
                 });
@@ -43,11 +43,11 @@
                             endpoint: endpoint
                         }
                     }).then(function (resp) {
-                        console.info('>> remote DTOU router connected', resp.data);
+                        console.info('>> remote DTOU router connected', resp.data.link.hashname);
                         resolve(resp.data);
                     }, function (e) {
-                        console.error('>> failed to connect to endpoint', e.data);
-                        resolve(e.data);
+                        console.error('>> failed to connect to endpoint', e);
+                        resolve((e.data) ? e.data : {error:'check configurations'});
                     });
                 });
             };
@@ -90,8 +90,8 @@
                         console.info('>> dtou def resp received', resp.data);
                         resolve(resp.data);
                     }, function (e) {
-                        console.error('>> failed to get dtou defs', e.data);
-                        resolve(e.data);
+                        console.error('>> failed to get dtou defs', e);
+                        resolve((e.data) ? e.data : {error:'check configurations'});
                     });
                 });
             };
@@ -106,7 +106,7 @@
             return {
                 // - tell local dtou router to connect to remote endpoint
                 connect: function(local, endpoint) {
-                    console.info('>> connecting to remote DTOU router');
+                    console.info('>> connecting to remote DTOU router', endpoint);
                     return connect(local, endpoint);
                 },
                 // - establish connection sandwiching a proxy router

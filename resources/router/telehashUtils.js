@@ -11,7 +11,8 @@ const telehash      = require('telehash'),
     cfgFile         = '/mnt/dtou/th_router.json',
     linkFile        = '/mnt/dtou/th_links.json',
     cacheFlag       = process.env.TH_CACHE == 'true',
-    discoverFlag    = process.env.TH_DISCOVER == 'true';
+    discoverFlag    = process.env.TH_DISCOVER == 'true'
+    preconnect      = process.env.TH_PRECONNECT;
 
 telehash.log({debug:console.log});
 
@@ -88,10 +89,11 @@ var _TelehashUtil = function(reqHandler) {
                 if (req.method == 'POST') {
                     req.pipe(cs(function(body) {
                         var payload = JSON.parse(body.toString());
-                        console.log('--> [thtp] incoming request', payload);
+                        console.info('--> [thtp] incoming request', payload);
                         resp.setHeader('Content-Type', 'application/json');
                         if(reqHandler && typeof reqHandler === 'function') {
                             reqHandler(payload).then(function(out){
+                                console.info('--> [thtp] handler finished, sending out', out)
                                 resp.end(JSON.stringify(out));
                             });
                         } else {
@@ -140,7 +142,7 @@ var _TelehashUtil = function(reqHandler) {
                 // - accept any link
                 created.accept = function (inc) {
                     // console.log('--> incoming from', {"hashname": inc.hashname, "paths": inc.paths});
-                    console.log('--> incoming from', inc);
+                    console.info('--> incoming link from', inc.hashname);
                     // - establishes link from any incoming req
                     var link = created.link(inc);
 
@@ -185,6 +187,14 @@ var _TelehashUtil = function(reqHandler) {
     //   }
     var _connect = function(endpoint) {
         return new Promise(function(resolve, reject) {
+            // - somehow telehash decides _not_ to use the cached links
+            var found = mesh.links.filter(function(l){
+                return l.hashname === endpoint.hashname && l.up;
+            });
+            if(found.length > 0) {
+                console.info('--> found cached link for', found[0].hashname);
+                return resolve(found[0]);
+            }
             var link = mesh.link(endpoint);
             // - hold for 10s
             setTimeout(function(){
@@ -270,7 +280,7 @@ var _TelehashUtil = function(reqHandler) {
                         console.log(payload);
                         reject(new TelehashException('malformed router info', {}));
                     }
-                    console.log('--> [thtp] DTOU router located', payload.mesh);
+                    console.log('--> DTOU router located', payload.mesh.hashname);
                     resolve(payload.mesh);
                 }));
             });
@@ -318,6 +328,17 @@ var _TelehashUtil = function(reqHandler) {
     return new Promise(function(resolve, reject) {
         _id().then(function(id) {
             return _router(id, reqHandler);
+        }).then(function(mesh) {
+            if (preconnect) {
+                console.info('--> preconnecting to', preconnect);
+                return _bootstrap(url.parse(preconnect).hostname).then(function (router) {
+                    return mesh;
+                }).catch(function(e){
+                    console.error('could not preconnect to', preconnect);
+                    return mesh;
+                });
+            }
+            return Promise.resolve(mesh);
         }).then(function(mesh) {
             resolve({
                 bootstrap: _bootstrap,
