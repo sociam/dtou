@@ -36,10 +36,10 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
                     _(msg).chain().clone().extend({ids: unpackLSArr(localStorage[msg.type])}).value(),
                     {token: dataLayer.token}));
             },
-            'get_other_defs': (msg) => {
+            'ask_peer': (msg) => {
                 var identifier = dataLayer.extract(msg.payload);
-                console.info('>> getting defs for ', conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
-                return dataLayer.getDefinitions(conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
+                console.info('>> asking peer for ', conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
+                return dataLayer.askPeer(conf.dtou_ctr, identifier, conf.dtou_router, msg.payload);
             },
             'get_id': (msg) => {
                 dataLayer.id(conf.dtou_ctr).then(function(got) {

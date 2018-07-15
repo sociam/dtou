@@ -189,14 +189,34 @@ var _TelehashUtil = function(reqHandler) {
         return new Promise(function(resolve, reject) {
             // - somehow telehash decides _not_ to use the cached links
             var found = mesh.links.filter(function(l){
-                return l.hashname === endpoint.hashname && l.up;
+                return (l.hashname === endpoint.hashname || l.hashname === endpoint) && l.up;
             });
             if(found.length > 0) {
                 console.info('--> found cached link for', found[0].hashname);
                 return resolve(found[0]);
             }
             var link = mesh.link(endpoint);
-            // - hold for 10s
+
+            // - TODO fix this -- significantly faster but buggy; race two promises to get connection w/ 10s timeout
+            // return Promise.race([
+            //     new Promise(function(resolve, reject){
+            //         setTimeout(function(){
+            //             reject(new TelehashException("failed to link to endpoint ["+JSON.stringify(endpoint)+"] (not found?)"), null, 404);
+            //         }, 10000);
+            //     }),
+            //     new Promise(function(resolve, reject) {
+            //         var interval = setInterval(function() {
+            //             if(link && link.up) {
+            //                 // - cb for out-link status changes
+            //                 link.status(_linkStatus);
+            //                 resolve(link);
+            //                 clearInterval(interval);
+            //             }
+            //         }, 200);
+            //     })
+            // ]);
+
+            // - hold for 10s; replace with above when fixed
             setTimeout(function(){
                 if(link && link.up) {
                     // - cb for out-link status changes
@@ -236,7 +256,7 @@ var _TelehashUtil = function(reqHandler) {
     var _outThtp = function(payload, endpoint, respHandler) {
         return new Promise(function(resolve, reject) {
             _connect(endpoint).then(function(link) {
-                console.log('--> [thtp] outgoing');
+                console.log('--> [thtp] outgoing to', endpoint);
                 const ops = {
                     method: 'POST',
                     path:   '/'

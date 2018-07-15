@@ -91,14 +91,14 @@ var dtouRouter = function(thUtils) {
     var _dtouRouter = express.Router();
 
     // - uses same data model as stored in pdb for convenience
-    _dtouRouter.route('/definitions')
+    _dtouRouter.route('/ask_peer')
         .post(function(req, resp, next) {
             console.log('--> post /definitions', req.body);
             // - TODO make this more generic for media besides thtp
             if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
             // _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
             //         var updated = dtouUtils.outboundCheckDtou(req.body.payload);
-            dtouUtils.outboundCheckDtou(req.body.payload).then(function(updated) {
+            dtouUtils.outboundProcessDtou(req.body.payload).then(function(updated) {
                 return thUtils.fire(updated, req.body.endpoint);
             }).then(function(out){
                 resp.send(out);
@@ -108,20 +108,6 @@ var dtouRouter = function(thUtils) {
             //     resp.send(out);
             // }).catch(function(e) {
             //     return next(e);
-            });
-        });
-
-    _dtouRouter.route('/process')
-        .post(function(req, resp, next) {
-            if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
-            // _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
-            //     var updated = dtouUtils.outboundProcessDtou(req.body.payload);
-            dtouUtils.outboundProcessDtou(req.body.payload).then(function(updated){
-                return thUtils.fire(updated, req.body.endpoint);
-            }).then(function(out){
-                resp.send(out);
-            }).catch(function(e) {
-                return next(e);
             });
         });
 

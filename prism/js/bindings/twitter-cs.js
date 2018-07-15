@@ -34,7 +34,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         openTab = (path, tweet, extras) => {
             port.postMessage({
                 cmd: 'openTab',
-                url: [path, '?', $.param(_.extend({id:tweet.id, active:true}, extras))].join(''),
+                // url: [path, '?', $.param(_.extend({id:tweet.id, active:true}, extras))].join(''),
+                url: [path, '?', $.param({id:tweet.id, active:true, encoded:btoa(JSON.stringify(extras))})].join(''),
                 active: true
             });
         },
@@ -44,6 +45,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 'data-delay="150" data-original-title="Insert DToU Identifier"><img src="'+img+'" height="24"/></button></div></span>';
         },
         addButton = () => {
+            // - TODO refactor + add buttons to replies
             var img = chrome.extension.getURL('img/prism.png');
 
             $('.home-tweet-box .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-home', img));
@@ -119,10 +121,10 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 return res;
             });
         },
-        augmentAddMenuOther = (tweet, data, cb) => {
-            askBg({cmd:'get_other_defs', id:data.id, payload:data}).then((response) => {
+        addMenuOther = (tweet, data, cb) => {
+            askBg({cmd:'ask_peer', id:data.id, payload:data}).then((response) => {
                 if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                    console.log('got', response);
+                    console.log('>> got peer dtou', response);
                     let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
                     $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
                     let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
@@ -134,15 +136,14 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         btn.on('mouseenter', function () {
                             btn.find('button').addClass('in');
                             return true;
-                        })
-                            .on('mouseleave', function () {
+                        }).on('mouseleave', function () {
                                 btn.find('button').removeClass('in');
                                 return true;
                             })
                             .prependTo(sel);
                     } else {
                         btn.on('click', function () {
-                            openTab('/other.html', data, data);
+                            openTab('/other.html', data, response.data);
                             $('.dropdown').removeClass('open');
                             return true;
                         }).prependTo(sel);
@@ -150,6 +151,30 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 }
             }).then((res) => {
                 if(cb && typeof cb === 'function') cb();
+                return res;
+            });
+        },
+        augmentOther = (tweet, data, otherData, cb) => {
+            askBg({cmd:'get_model', id:data.id}).then((response) => {
+                // - TODO put this whole blob into dtou_handlers/twitter.js
+                if (!response.data.agreement) return;
+                // - content substitution dtou
+                if (response.data.agreement.definitions.substitute) {
+                    var things = $(tweet).find('.js-tweet-text-container p').clone();
+                    $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
+                    things.addClass('secondLayer');
+                    window._tweet = tweet;
+                    window._response = response;
+                    window.things = things;
+                    $(things).html(otherData.dtou.secrets.substituteHtml);
+                    $(tweet).find('.js-tweet-text-container').append(things);
+                }
+                // - pingback dtou
+                if (response.data.dtou.definitions.pingback) {
+
+                }
+            }).then((res) => {
+                if (cb && typeof cb === 'function') cb();
                 return res;
             });
         },
@@ -170,11 +195,10 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
         update_dom = () => {
             var res;
             domLock.then(() => {
-                console.info('updating dom');
-                domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
-                if (profile === undefined) {
-                    profile = extract_profile();
-                }
+                // - TODO the mutex doesn't actually work -- figure this out later
+                // console.info('updating dom');
+                // domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
+                if (profile === undefined) profile = extract_profile();
 
                 // visible tweets ...
                 // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));
@@ -215,10 +239,11 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
                             var tweetData = extractTweet(tweet)
                             augmenting.add(tweetData.id);
-                            augmentAddMenuOther(tweet, tweetData, () => {rm(tweetData.id)});
+                            saveTweet(tweetData);
+                            addMenuOther(tweet, tweetData, () => {rm(tweetData.id)});
                         }
                     });
-                augLock.then(() => {res()});
+                augLock.then(() => {if(res) res()});
             });
         },
         setTweetIds = (ids) => {
@@ -231,6 +256,14 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
     var init = () => {
         // connect to the back-end; bg has onConnect listener for receiving messages from this tab
         port = chrome.runtime.connect();
+
+        $('#timeline').bind('DOMSubtreeModified', function(e) {
+            if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
+                update_dom();
+            }
+            //  if (e.target.innerHTML.length > 0) { update_dom(); }
+        });
+
         port.onMessage.addListener(function(msg) {
             // - unblocks promises that are waiting for the bg central handlers
             if (msg.cb_nonce && cbHandlers[msg.cb_nonce]) {
@@ -244,20 +277,12 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             if (msg.cmd === 'get_defs' && msg.type == 'tweet') {
                 setTweetIds(msg.ids);
                 token = msg.token;
-                if (msg.init){
-                    $('#timeline').bind('DOMSubtreeModified', function(e) {
-                        if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
-                            update_dom();
-                        }
-                        //  if (e.target.innerHTML.length > 0) { update_dom(); }
-                    });
-                }
                 return update_dom();
             }
 
             console.error("unknown message", msg, cbHandlers);
         });
-        port.postMessage({cmd:'get_defs', type:'tweet', init: true});
+        port.postMessage({cmd:'get_defs', type:'tweet'});
         port.onDisconnect.addListener(function(e) {
             console.error('>> port disconnected', e);
         });

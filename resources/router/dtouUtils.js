@@ -34,13 +34,16 @@ var handlers = {
             }
         }
     },
-    outboundCheckDtou = function(blob) {
-        // - A asks entity owner B for entity's dtous; handle said dtous
+    outboundProcessDtou = function(blob) {
+        // - A selects dtous + ask for further operations on B's data wrt dtous
         if(!blob.type) throw new DtouException('dtou blob missing field: type');
         if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
         if(blob.type === dtouTypes.tweet){
             var slim = _.omit(blob, ['text', 'html', 'conversationId']);
-            return Promise.resolve(_.merge(slim, {cmd: commands.get_defs}));
+            if (!blob.agreement){
+                return Promise.resolve(_.merge(slim, {cmd: commands.get_defs}));
+            }
+            return Promise.resolve(_.merge(slim, {cmd: commands.process_dtous}));
         }
     },
     _inboundCheckDtou = function(blob) {
@@ -55,14 +58,38 @@ var handlers = {
             });
         }
     },
-    outboundProcessDtou = function(blob) {
-        // - A selects dtous + ask for further operations on B's data wrt dtous
-        if(!blob.type) throw new DtouException('dtou blob missing field: type');
-        if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
-        return Promise.resolve(_.merge(blob, {cmd: commands.process_dtous}));
-    },
     _inboundProcessDtou = function(blob) {
         // - B releases data
+        // - TODO all DTOU logic will go here, e.g. future project: DTOU spec lang
+        if(blob.type === dtouTypes.tweet) {
+            if(!blob.id) throw new DtouException('blob missing field: id');
+            return storageUtils.get(blob.id).then(function(got){
+                var dtou = got.dtou,
+                    agreement = blob.agreement;
+                if(got.dtou){
+                    const secrets = _.cloneDeep(dtou.secrets);
+                    var inSecrets = secrets;
+                    dtou.secrets = {};
+                    if (agreement.definitions.substitute && secrets.substituteHtml){
+                        dtou.secrets.substituteHtml = secrets.substituteHtml;
+                    }
+                    if (dtou.definitions.pingback){
+                        var c = _.get(secrets, ['pingbackData',blob.authorid, 'count'], 0);
+                        _.updateWith(inSecrets, ['pingbackData',blob.authorid,'count'], c+1);
+                        _.set(inSecrets, ['pingbackData', blob.authorid, 'author'], blob.author);
+                    }
+                    return storageUtils.update(blob.id, function(item){
+                        item.dtou.secrets = inSecrets;
+                        return item;
+                    }).then(function(){
+                        return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
+                    });
+                }
+                return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
+            }).catch(function(e) {
+                return {error: e.message};
+            });
+        }
     },
     inboundController = function(blob) {
         // - redirects all inbound messages to the right places
@@ -80,7 +107,6 @@ var handlers = {
     };
 
 module.exports = {
-    outboundCheckDtou: outboundCheckDtou,
     outboundProcessDtou: outboundProcessDtou,
     inboundController: inboundController
 }

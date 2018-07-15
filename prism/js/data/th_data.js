@@ -73,10 +73,10 @@
                 });
             };
 
-            var getDefinitions = function(local, endpoint, router, payload) {
+            var askPeer = function(local, endpoint, router, payload) {
                 return new Promise(function(resolve, reject) {
                     var out = new URL(local);
-                    out.pathname = 'dtou/definitions';
+                    out.pathname = 'dtou/ask_peer';
                     $http({
                         method: 'POST',
                         url: out.href,
@@ -87,10 +87,10 @@
                             router: router
                         }
                     }).then(function (resp) {
-                        console.info('>> dtou def resp received', resp.data);
+                        console.info('>> dtou resp received', resp.data);
                         resolve(resp.data);
                     }, function (e) {
-                        console.error('>> failed to get dtou defs', e);
+                        console.error('>> failed to ask peer', e);
                         resolve((e.data) ? e.data : {error:'check configurations'});
                     });
                 });
@@ -119,7 +119,7 @@
                 token: token,
                 id: id,
                 extractFromText: extractFromText,
-                getDefinitions: getDefinitions
+                askPeer: askPeer
             };
         });
 })();

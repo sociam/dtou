@@ -32,6 +32,7 @@ app.controller('popup', ($scope, $timeout) => {
             dtou_router: $scope.dtou_router,
             storage_location: $scope.dtou_storage
 		});
+        window.close();
     };
 
     $timeout(() => {

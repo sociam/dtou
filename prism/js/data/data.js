@@ -32,7 +32,7 @@ angular.module('dtouprism')
                 id: function(local) {
                     return thdata.id(local);
                 },
-                getDefinitions: thdata.getDefinitions,
+                askPeer: thdata.askPeer,
                 token: thdata.token
             });
         }

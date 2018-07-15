@@ -4,7 +4,6 @@ console.log('hello --- create!');
 
 angular.module('dtouprism')
     .controller('create', function($scope, storage, utils, $location, $timeout, $sce) {
-        console.info('hello create');
         var bg = chrome.extension.getBackgroundPage(),
             url = $location.absUrl(),
             oid = utils.getUrlParam(url, 'id'),
@@ -19,6 +18,7 @@ angular.module('dtouprism')
                 $scope.items = collection.models; 
                 if (oid) { 
                     var m = $scope.selected = collection.get(oid);
+                    ui.author = m.attributes.author;
                     $scope.selectedHtml = $sce.trustAsHtml($scope.selected.attributes.html || $scope.selected.attributes.text);
                     if(m.attributes.dtou){
                         var dtou = m.attributes.dtou;
@@ -26,6 +26,7 @@ angular.module('dtouprism')
                         ui.substituteHtml = dtou.secrets.substituteHtml;
                         ui.pingback = dtou.definitions.pingback;
                         ui.pingbackData = dtou.secrets.pingbackData;
+                        ui.delete = dtou.definitions.delete;
                     };
                     // console.log("selected >> ", $scope.selected);
                 }
@@ -53,11 +54,18 @@ angular.module('dtouprism')
                     dtou.secrets.pingbackData = (dtou.secrets.pingbackData) ? dtou.secrets.pingbackData : {};
                 }
 
+                if (ui.delete) {
+                    dtou.definitions.delete = ui.delete;
+                }
+
                 if (ui.sign) {
                     // TODO - implement crypto
                 }
                 m.set('dtou', dtou);
                 $scope.selected.save().then(() => { console.log(`model updated ${m.id}`, dtou);});
+                setTimeout(function() {
+                    window.close();
+                }, 200);
             }
         };
         window._s = $scope;
