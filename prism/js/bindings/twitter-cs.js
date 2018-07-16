@@ -106,7 +106,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     things.addClass('secondLayer');
                     // console.log('askBG >> ', {cmd: 'get_model', id: data.id});
                     window._tweet = tweet;
-                    window._response = response;
+                    // window._response = response;
                     window.things = things;
                     $(things).html(response.data.dtou.secrets.substituteHtml);
                     $(tweet).find('.js-tweet-text-container').append(things);
@@ -121,14 +121,25 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 return res;
             });
         },
-        addMenuOther = (tweet, data, cb) => {
-            askBg({cmd:'ask_peer', id:data.id, payload:data}).then((response) => {
+        addMenuAndAugmentOther = (tweet, tweetData, cb) => {
+            var got_model = askBg({cmd:'get_model', id:tweetData.id});
+            var peer_resp = got_model.then((got) => {
+                var payload = _.merge((got.data) ? got.data : tweetData, {id:tweetData.id});
+                console.log('asking for', payload);
+                return askBg({cmd:'ask_peer', id:tweetData.id, payload:payload});
+            });
+            return Promise.all([got_model, peer_resp]).then((pair) => {
+                // - separate the two promise results
+                var mySavedData = pair[0],
+                    peerData = pair[1];
+
                 if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                    console.log('>> got peer dtou', response);
+                    // - add menu for accepting dtous
+                    console.info('>> got peer dtou', peerData.data);
                     let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
                     $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
                     let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
-                    if (!response.data || response.data.error) {
+                    if (!peerData.data || peerData.data.error) {
                         btn.find('button')
                             .addClass('js-tooltip')
                             .attr('data-original-title', 'connection error; check DToU settings')
@@ -137,44 +148,34 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                             btn.find('button').addClass('in');
                             return true;
                         }).on('mouseleave', function () {
-                                btn.find('button').removeClass('in');
-                                return true;
-                            })
-                            .prependTo(sel);
+                            btn.find('button').removeClass('in');
+                            return true;
+                        }).prependTo(sel);
                     } else {
                         btn.on('click', function () {
-                            openTab('/other.html', data, response.data);
+                            openTab('/other.html', tweetData, peerData.data);
                             $('.dropdown').removeClass('open');
                             return true;
                         }).prependTo(sel);
                     }
+
+                    // - augment tweet with returned dtou data
+                    if (mySavedData.data.agreement && _.get(peerData, ['data','dtou','secrets'])) {
+                        var things = $(tweet).find('.js-tweet-text-container p').clone();
+
+                        $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
+                        things.addClass('secondLayer');
+                        window._tweet = tweet;
+                        // window._response = peerData;
+                        window.things = things;
+                        $(things).html(peerData.data.dtou.secrets.substituteHtml);
+                        $(tweet).find('.js-tweet-text-container').append(things);
+                    }
                 }
+
+                return peerData;
             }).then((res) => {
                 if(cb && typeof cb === 'function') cb();
-                return res;
-            });
-        },
-        augmentOther = (tweet, data, otherData, cb) => {
-            askBg({cmd:'get_model', id:data.id}).then((response) => {
-                // - TODO put this whole blob into dtou_handlers/twitter.js
-                if (!response.data.agreement) return;
-                // - content substitution dtou
-                if (response.data.agreement.definitions.substitute) {
-                    var things = $(tweet).find('.js-tweet-text-container p').clone();
-                    $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
-                    things.addClass('secondLayer');
-                    window._tweet = tweet;
-                    window._response = response;
-                    window.things = things;
-                    $(things).html(otherData.dtou.secrets.substituteHtml);
-                    $(tweet).find('.js-tweet-text-container').append(things);
-                }
-                // - pingback dtou
-                if (response.data.dtou.definitions.pingback) {
-
-                }
-            }).then((res) => {
-                if (cb && typeof cb === 'function') cb();
                 return res;
             });
         },
@@ -237,10 +238,10 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 $('.tweet').filter(findOthers)
                     .map((x, tweet) => {
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                            var tweetData = extractTweet(tweet)
+                            var tweetData = extractTweet(tweet);
                             augmenting.add(tweetData.id);
                             saveTweet(tweetData);
-                            addMenuOther(tweet, tweetData, () => {rm(tweetData.id)});
+                            addMenuAndAugmentOther(tweet, tweetData, () => {rm(tweetData.id)});
                         }
                     });
                 augLock.then(() => {if(res) res()});

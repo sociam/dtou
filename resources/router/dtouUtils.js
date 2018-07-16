@@ -40,7 +40,7 @@ var handlers = {
         if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
         if(blob.type === dtouTypes.tweet){
             var slim = _.omit(blob, ['text', 'html', 'conversationId']);
-            if (!blob.agreement){
+            if (!blob.agreement || Object.keys(blob.agreement).length === 0){
                 return Promise.resolve(_.merge(slim, {cmd: commands.get_defs}));
             }
             return Promise.resolve(_.merge(slim, {cmd: commands.process_dtous}));
@@ -64,30 +64,51 @@ var handlers = {
         if(blob.type === dtouTypes.tweet) {
             if(!blob.id) throw new DtouException('blob missing field: id');
             return storageUtils.get(blob.id).then(function(got){
-                var dtou = got.dtou,
-                    agreement = blob.agreement;
-                if(got.dtou){
-                    const secrets = _.cloneDeep(dtou.secrets);
-                    var inSecrets = secrets;
-                    dtou.secrets = {};
-                    if (agreement.definitions.substitute && secrets.substituteHtml){
-                        dtou.secrets.substituteHtml = secrets.substituteHtml;
+                var myDtou = got.dtou,
+                    theirAgreement = blob.agreement,
+                    secrets = _.cloneDeep(myDtou.secrets);
+                    myDtou.secrets = {};
+                if(!myDtou || !theirAgreement.definitions.substitute){
+                    return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
+                } else {
+                    // - modify outgoing data
+                    if (secrets.substituteHtml){
+                        myDtou.secrets.substituteHtml = secrets.substituteHtml;
                     }
-                    if (dtou.definitions.pingback){
-                        var c = _.get(secrets, ['pingbackData',blob.authorid, 'count'], 0);
-                        _.updateWith(inSecrets, ['pingbackData',blob.authorid,'count'], c+1);
-                        _.set(inSecrets, ['pingbackData', blob.authorid, 'author'], blob.author);
+                    // - modify my own stored secrets
+                    if (myDtou.definitions.pingback){
+                        var now = new Date(),
+                            timeReached = false;
+                        // - this whole blob is to 1. if not existing, init values;
+                        //   2. update values if readtime*hours has passed
+                        _.update(secrets, ['pingbackData', blob.authorid, 'stamp'], function(prev){
+                            if(!prev) return now;
+                            var stamp = new Date(prev);
+                            if(myDtou.definitions.readtime){
+                                stamp.setMinutes(stamp.getMinutes() + myDtou.definitions.readtime);
+                                if(stamp.getTime() < now.getTime()) {
+                                    timeReached = true;
+                                    return now;
+                                }
+                            }
+                            return prev;
+                        });
+                        _.update(secrets, ['pingbackData', blob.authorid, 'count'], function(count){
+                            if(!count) return 1;
+                            else if (timeReached) return count + 1;
+                            else return count;
+                        });
+                        _.set(secrets, ['pingbackData', blob.authorid, 'author'], blob.author);
                     }
+                    // - ensure that we've updated our own secrets first before releasing outgoing data
                     return storageUtils.update(blob.id, function(item){
-                        item.dtou.secrets = inSecrets;
+                        item.dtou.secrets = secrets;
                         return item;
                     }).then(function(){
+                        console.info('--> [DTOU] updated dtou for', blob.id, secrets);
                         return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
                     });
                 }
-                return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
-            }).catch(function(e) {
-                return {error: e.message};
             });
         }
     },
@@ -102,6 +123,7 @@ var handlers = {
                 throw new DtouException('blob has weird cmd block', blob);
             }
         } catch(e) {
+            console.error('--> [DTOU] inbound dtou controller error: ', e);
             return Promise.resolve({error: e});
         }
     };

@@ -27,6 +27,8 @@ angular.module('dtouprism')
                         ui.pingback = dtou.definitions.pingback;
                         ui.pingbackData = dtou.secrets.pingbackData;
                         ui.delete = dtou.definitions.delete;
+                        ui.readtime = (dtou.definitions.readtime >= 0) ? dtou.definitions.readtime : 0;
+                        ui.sign = dtou.definitions.sign;
                     };
                     // console.log("selected >> ", $scope.selected);
                 }
@@ -44,28 +46,24 @@ angular.module('dtouprism')
                     },
                     ui = $scope.ui;
 
-                if (ui.substitute) {  
-                    dtou.definitions.substitute = true;
-                    dtou.secrets.substituteHtml = ui.substituteHtml;
-                }
+                dtou.definitions.substitute = ui.substitute;
+                dtou.definitions.pingback = ui.pingback;
+                dtou.definitions.delete = ui.delete;
+                dtou.definitions.readtime = ui.readtime;
+                dtou.definitions.sign = ui.sign;
 
-                if (ui.pingback) {
-                    dtou.definitions.pingback = true;
-                    dtou.secrets.pingbackData = (dtou.secrets.pingbackData) ? dtou.secrets.pingbackData : {};
-                }
-
-                if (ui.delete) {
-                    dtou.definitions.delete = ui.delete;
-                }
-
+                if (ui.substitute) dtou.secrets.substituteHtml = ui.substituteHtml;
+                if (ui.pingback) dtou.secrets.pingbackData = (dtou.secrets.pingbackData) ? dtou.secrets.pingbackData : {};
                 if (ui.sign) {
                     // TODO - implement crypto
                 }
                 m.set('dtou', dtou);
-                $scope.selected.save().then(() => { console.log(`model updated ${m.id}`, dtou);});
-                setTimeout(function() {
-                    window.close();
-                }, 200);
+                $scope.selected.save().then(() => {
+                    console.log(`model updated ${m.id}`, dtou);
+                    setTimeout(function() {
+                        window.close();
+                    }, 200);
+                });
             }
         };
         window._s = $scope;

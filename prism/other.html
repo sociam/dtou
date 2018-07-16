@@ -29,52 +29,58 @@
     <h1> Data Terms of Use (DToU) </h1>
 </div>
 
-<div class="container">
-    <div class="dtoucontrols center-block  row" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
+<div class="container col-8">
+    <div class="dtoucontrols m-2" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
         <!-- <pre ng-bind="selected.id"></pre> -->
         <h2> <div ng-bind="'Selected Tweet (Peer: @'+ui.author+')'"></div></h2>
-        <div class="well" ng-bind-html="::selectedHtml" ng-show="selected"></div>
+        <div class="card" ng-show="selected">
+            <div class="card-body" ng-bind-html="::selectedHtml"></div>
+        </div>
         <div ng-show="!selected">
             No Entity Selected
         </div>
     </div>
 
-    <div class="dtoucontrols center-block row">
+    <div class="dtoucontrols m-2">
         <h2> Peer DToU Declarations </h2>
         <!--<table>-->
         <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
         <!--</table>-->
         <table class="table">
             <tr ng-show="ui.peer">
-                <th class="col-md-2">Terms</th>
-                <th class="col-md-2">My Settings</th>
-                <th class="col-md-8">Details</th>
+                <th>Terms</th>
+                <th>My Settings</th>
+                <th class="">Details</th>
             </tr>
             <tr ng-show="!ui.peer">
                 <td> Peer Defined no DToUs </td>
             </tr>
             <tr ng-show="ui.peer.substitute">
-                <td class="col-md-2">Hidden Content</td>
-                <td class="col-md-2"><input type="checkbox" ng-model="ui.substitute"></td>
-                <td class='col-md-8 value'>
-                    <div type="text" ng-show="ui.substitute" ng-bind="ui.substituteHtml? ui.substituteHtml:'show content hidden by peer'"></div>
+                <td class="">Hidden Content</td>
+                <td class=""><input type="checkbox" ng-model="ui.substitute"></td>
+                <td class=' value'>
+                    <div type="text" ng-show="ui.substitute" ng-bind="ui.substituteHtml? ui.substituteHtml:'show and read content hidden by peer'"></div>
                 </td>
             </tr>
+            <tr ng-show="ui.substitute && ui.peer.pingback">
+                <td>Read-Receipts</td>
+                <td></td>
+                <td class='value' ng-bind="'data owner can see the number of your content reads'"></td>
+            </tr>
+            <tr ng-show="ui.substitute && ui.peer.readtime">
+                <td>Read Time</td>
+                <td></td>
+                <td class='value' ng-bind="'you have '+ui.peer.readtime+' minutes per read'"></td>
+            </tr>
+            <tr ng-show="ui.substitute && ui.peer.delete">
+                <td>Delete-on-Read</td>
+                <td></td>
+                <td class='value' ng-bind="'content will be readable for/deleted after '+ui.peer.delete+' reads'"></td>
+            </tr>
             <tr ng-show="ui.peer.sign">
-                <td class="col-md-2">Decrypt</td>
-                <td class="col-md-2"><input type="checkbox" ng-bind="ui.sign"></td>
-                <td class="col-md-8" class='value' ng-bind="ui.sign ? 'decrypt cryptographically signed content' : 'not signed'"></td>
-            </tr>
-            <tr ng-show="ui.peer.pingback">
-                <td class="col-md-2">Read-Receipts</td>
-                <td class="col-md-2"></td>
-                <td class="col-md-8" class='value' ng-bind="'Tweet owner can see your number of Tweet reads'"></td>
-            </tr>
-
-            <tr ng-show="ui.peer.delete">
-                <td class="col-md-2">Delete-on-Read</td>
-                <td class="col-md-2"></td>
-                <td class="col-md-8" class='value' ng-bind="'content will be readable for/deleted after '+ui.peer.delete+' reads'"></td>
+                <td class="">Decrypt</td>
+                <td><input type="checkbox" ng-bind="ui.sign"></td>
+                <td class='value' ng-bind="ui.sign ? 'decrypt cryptographically signed content' : 'not signed'"></td>
             </tr>
         </table>
         <button ng-show="ui.peer" class="btn" ng-click="save()">Agree to Peer DToUs</button>

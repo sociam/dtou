@@ -50,20 +50,19 @@ angular.module('dtouprism')
                     },
                     ui = $scope.ui;
 
-                if (ui.substitute) {
-                    agreement.definitions.substitute = true;
-                }
-
-                // if (ui.pingback) {
-                //     agreement.definitions.pingback = true;
-                // }
+                agreement.definitions.substitute = ui.substitute;
+                agreement.definitions.sign = ui.sign;
 
                 if (ui.sign) {
                     // TODO - implement crypto
-                    agreement.definitions.sign = true;
                 }
                 m.set('agreement', agreement);
-                $scope.selected.save().then(() => { console.log(`model updated ${m.id}`, agreement);});
+                $scope.selected.save().then(() => {
+                    console.log(`model updated ${m.id}`, agreement);
+                    setTimeout(function() {
+                        window.close();
+                    }, 200);
+                });
             }
         };
         window._s = $scope;

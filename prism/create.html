@@ -3,16 +3,16 @@
 	<head>
 		<meta charset="utf-8" />
         <link rel="stylesheet/less" href="css/create.less">
-        <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.css">
+        <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.min.css">
 
-		<script type="text/javascript" src="lib/less/dist/less.js"></script>		
+        <script type="text/javascript" src="lib/less/dist/less.js"></script>
 		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
-		<script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>	
+        <script type="text/javascript" src="lib/bootstrap/dist/js/bootstrap.min.js"></script>"
+
+        <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
 		<script type="text/javascript" src="lib/backbone/backbone.js"></script>					
 		<script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
 		<script type="text/javascript" src="lib/angular/angular.js"></script>
-        <script type="text/javascript" src="lib/bootstrap/js/bootstrap.js"></script>"
-
 		<script type="text/javascript" src="js/dtou.js"></script>		
 		<script type="text/javascript" src="js/utils.js"></script>		
 		<script type="text/javascript" src="js/storage2.js"></script>		
@@ -29,59 +29,76 @@
             <h1> Data Terms of Use (DToU) </h1>
         </div>
 
-        <div class="container">
-            <div class="dtoucontrols center-block row" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
+        <div class="container col-8">
+            <div class="dtoucontrols m-2" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
                 <!-- <pre ng-bind="selected.id"></pre> -->
                 <h2> <div ng-bind="'Selected Tweet (Mine: @'+ui.author+')'"></div></h2>
-                <div class="well" ng-bind-html="::selectedHtml" ng-show="selected"></div>
+                <div class="card" ng-show="selected">
+                    <div class="card-body" ng-bind-html="::selectedHtml"></div>
+                </div>
                 <div ng-show="!selected">
                     No Entity Selected
                 </div>
             </div>
 
-            <div class="dtoucontrols center-block row">
+            <div class="dtoucontrols m-2">
                 <h2> My DToU Declarations </h2>
                 <!--<table>-->
                     <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
                 <!--</table>-->
                 <table class="table">
-                    <tr>
-                        <th class="col-md-2">Terms</th>
-                        <th class="col-md-2">My Settings</th>
-                        <th class="col-md-8">Details</th>
-                    </tr>
-                    <tr>
-                        <td class="col-md-2">Hide Content</td>
-                        <td class="col-md-2"><input type="checkbox" ng-model="ui.substitute"></td>
-                        <td class='col-md-8 value'><input class='col-lg-12' type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
-                    </tr>
-                    <tr>
-                        <td class="col-md-2">Cryptographically Sign</td>
-                        <td class="col-md-2"><input type="checkbox" ng-bind="ui.sign"></td>
-                        <td class="col-md-8" class='value' ng-bind="ui.sign ? 'signed' : 'not signed'"></td>
-                    </tr>
-                    <tr>
-                        <td class="col-md-2">Read-Receipts</td>
-                        <td class="col-md-2"><input type="checkbox" ng-model="ui.pingback"></td>
-                        <td class="col-md-8" class='value' ng-bind="ui.pingback ? 'enabled (readers will be logged)' : 'disabled'"></td>
-                    </tr>
-                    <tr>
-                        <td class="col-md-2">Delete-on-Read #</td>
-                        <td class="col-md-2"><input class="col-xs-8" type="number" ng-model="ui.delete" min="0"></td>
-                        <td class="col-md-8" class='value' ng-bind="ui.delete ? 'enabled (content deleted after '+ui.delete+' reads)' : 'disabled'"></td>
-                    </tr>
+                    <thead>
+                        <tr>
+                            <th>Terms</th>
+                            <th>My Settings</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Hidden Content</td>
+                            <td><input type="checkbox" ng-model="ui.substitute"></td>
+                            <td class='value'><input class='' type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
+                        </tr>
+                        <tr>
+                            <td>Read-Receipts</td>
+                            <td><input type="checkbox" ng-model="ui.pingback"></td>
+                            <td  class='value' ng-bind="ui.pingback ? 'enabled: readers will be logged' : 'disabled'"></td>
+                        </tr>
+                        <tr ng-show="ui.pingback">
+                            <td>Read Time</td>
+                            <td><input class="" type="number" ng-model="ui.readtime" min="0" ></td>
+                            <td class='value' ng-bind="'minutes allowed for each read (requires read-receipts)'"></td>
+                        </tr>
+                        <tr ng-show="ui.pingback">
+                            <td>Delete-on-Read #</td>
+                            <td><input class="" type="number" ng-model="ui.delete" min="0"></td>
+                            <td class='value' ng-bind="ui.delete ? 'content deleted after '+ui.delete+' reads (requires read-receipts)' : 'disabled'"></td>
+                        </tr>
+                        <tr>
+                            <td>Cryptographically Sign</td>
+                            <td><input type="checkbox" ng-bind="ui.sign"></td>
+                            <td class='value' ng-bind="ui.sign ? 'signed' : 'not signed'"></td>
+                        </tr>
+                    </tbody>
                 </table>
                 <button class="btn" ng-click="save()">Save</button>
             </div>
 
-            <div class="dtoucontrols center-block row">
+            <div class="dtoucontrols m-2">
                 <h2>DToU Metadata</h2>
-                <table class="table">
-                    <tr>
-                        <td class="col-md-2">Read-Receipts</td>
-                        <td class="col-md-10" class='value' ng-bind="ui.pingback ? ui.pingbackData : 'disabled'"></td>
-                    </tr>
-                </table>
+                <div class="card-columns">
+                    <div class="card border-primary mb-3" style="" ng-repeat="(id, data) in ui.pingbackData">
+                        <div class="card-header bg-light text-primary font-weight-bold lead">{{data.author}}</div>
+                        <div class="card-body bg-light text-info">
+                            <h5 class="card-title">Summary</h5>
+                            <p class="card-text" ng-show="data.count">
+                                Your content was viewed <b>{{data.count}}</b> times.
+                            </p>
+                        </div>
+                        <div class="card-footer text-info small">Last viewed at <b>{{data.stamp}}</b>.</div>
+                    </div>
+                </div>
             </div>
         </div>
 	</body>

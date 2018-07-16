@@ -25,7 +25,7 @@
     "angular-ui-router":  "",
     "backbone":           "~1.1.2",
     "blueimp-load-image": "~1.13.0",
-    "bootstrap":          "~3.3.6",
+    "bootstrap":          "~4.0",
     "chai":               "~2.2.0",
     "d3":                 "~3.5.14",
     "jquery":             "^2.2.1",

@@ -47,7 +47,7 @@ var _getModel = function(id) {
 // - uses pdb upsert to update dtou statements for concurrency control
 // - fakes storage2 functionality --> port back to browser by wrapping storage2 instead of upsert
 var _upsert = function(id, fun) {
-    _database().then(function(db) {
+    return _database().then(function(db) {
         return db.upsert(id, fun);
     }).catch(function(e) {
         return Promise.reject(new PouchException("upsert failure", e));

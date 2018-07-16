@@ -9,7 +9,7 @@ const express       = require('express'),
     _               = require('lodash'),
     cfg             = '/opt/dtou_router.json',
     app             = express(),
-    port            = 80;
+    port            = (process.env.DTOU_PORT) ? process.env.DTOU_PORT : 80;
 
 // Error.stackTraceLimit = 16;
 
