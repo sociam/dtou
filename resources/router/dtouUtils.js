@@ -58,7 +58,7 @@ var handlers = {
             });
         }
     },
-    _inboundProcessDtou = function(blob) {
+    _inboundProcessDtou = function(blob, dtou_identifier) {
         // - B releases data
         // - TODO all DTOU logic will go here, e.g. future project: DTOU spec lang
         if(blob.type === dtouTypes.tweet) {
@@ -66,59 +66,63 @@ var handlers = {
             return storageUtils.get(blob.id).then(function(got){
                 var myDtou = got.dtou,
                     theirAgreement = blob.agreement,
-                    secrets = _.cloneDeep(myDtou.secrets);
+                    consumer = blob.agreement.consumer,
+                    newSecrets = _.cloneDeep(myDtou.secrets);
                     myDtou.secrets = {};
                 if(!myDtou || !theirAgreement.definitions.substitute){
+                    // - if reader hasn't agreed to my dtous, send out the empty secrets
                     return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
                 } else {
-                    // - modify outgoing data
-                    if (secrets.substituteHtml){
-                        myDtou.secrets.substituteHtml = secrets.substituteHtml;
+                    // - otherwise, modify according to my secrets
+                    if (newSecrets.substituteHtml){
+                        myDtou.secrets.substituteHtml = newSecrets.substituteHtml;
                     }
-                    // - modify my own stored secrets
-                    if (myDtou.definitions.pingback){
-                        var now = new Date(),
-                            timeReached = false;
-                        // - this whole blob is to 1. if not existing, init values;
-                        //   2. update values if readtime*hours has passed
-                        _.update(secrets, ['pingbackData', blob.authorid, 'stamp'], function(prev){
+                    // - if pingback and delete, check if incoming request for data consumption reaches limit
+                    var c = _.get(newSecrets, ['pingbackData', dtou_identifier, 'count'], 0),
+                        d = _.get(myDtou, ['definitions', 'delete'], 0),
+                        limitReached = myDtou.definitions.pingback && c > d;
+                    if(limitReached){
+                        myDtou.secrets.substituteHtml = 'Read-limit reached; content removed.';
+                    }
+                    // - otherwise, modify my secrets
+                    else if (myDtou.definitions.pingback){
+                        var now = new Date();
+                        // - this whole blob is to 1. init the previous time if it doesn't exist;
+                        //   2. update values if readtime*minutes has passed since then
+                        _.update(newSecrets, ['pingbackData', dtou_identifier, 'stamp'], function(prev){
                             if(!prev) return now;
-                            var stamp = new Date(prev);
                             if(myDtou.definitions.readtime){
+                                var stamp = new Date(prev);
                                 stamp.setMinutes(stamp.getMinutes() + myDtou.definitions.readtime);
                                 if(stamp.getTime() < now.getTime()) {
-                                    timeReached = true;
+                                    _.set(newSecrets, ['pingbackData', dtou_identifier, 'count'], c+1);
                                     return now;
                                 }
                             }
                             return prev;
                         });
-                        _.update(secrets, ['pingbackData', blob.authorid, 'count'], function(count){
-                            if(!count) return 1;
-                            else if (timeReached) return count + 1;
-                            else return count;
-                        });
-                        _.set(secrets, ['pingbackData', blob.authorid, 'author'], blob.author);
+                        _.set(newSecrets, ['pingbackData', dtou_identifier, 'author'], _.get(consumer, ['twitter', 'author']));
+                        _.set(newSecrets, ['pingbackData', dtou_identifier, 'authorid'], _.get(consumer, ['twitter', 'authorid']));
                     }
                     // - ensure that we've updated our own secrets first before releasing outgoing data
                     return storageUtils.update(blob.id, function(item){
-                        item.dtou.secrets = secrets;
+                        item.dtou.secrets = newSecrets;
                         return item;
                     }).then(function(){
-                        console.info('--> [DTOU] updated dtou for', blob.id, secrets);
+                        console.info('--> [DTOU] updated dtou for', blob.id, newSecrets);
                         return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
                     });
                 }
             });
         }
     },
-    inboundController = function(blob) {
+    inboundController = function(blob, dtou_identifier) {
         // - redirects all inbound messages to the right places
         try {
             if (blob.cmd === commands.get_defs) {
                 return _inboundCheckDtou(blob);
             } else if (blob.cmd === commands.process_dtous) {
-                return _inboundProcessDtou(blob);
+                return _inboundProcessDtou(blob, dtou_identifier);
             } else {
                 throw new DtouException('blob has weird cmd block', blob);
             }

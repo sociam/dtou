@@ -88,10 +88,13 @@
             <div class="dtoucontrols m-2">
                 <h2>DToU Metadata</h2>
                 <div class="card-columns">
-                    <div class="card border-primary mb-3" style="" ng-repeat="(id, data) in ui.pingbackData">
-                        <div class="card-header bg-light text-primary font-weight-bold lead">{{data.author}}</div>
+                    <div class="card border-secondary mb-3" ng-repeat="(id, data) in ui.pingbackData">
+                        <div class="card-header bg-light text-primary font-weight-bold lead"> Peer: {{data.author}}</div>
                         <div class="card-body bg-light text-info">
-                            <h5 class="card-title">Summary</h5>
+                            <p class="card-text">DToU Identifier: <b>{{id}}</b></p>
+                            <p class="card-text" ng-show="data.author">
+                                Viewer ID: <b>{{data.authorid}}</b>.
+                            </p>
                             <p class="card-text" ng-show="data.count">
                                 Your content was viewed <b>{{data.count}}</b> times.
                             </p>

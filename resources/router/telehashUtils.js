@@ -8,6 +8,7 @@ const telehash      = require('telehash'),
     url             = require('url'),
     cs              = require('concat-stream'),
     es              = require('event-stream'),
+    _               = require('lodash'),
     cfgFile         = '/mnt/dtou/th_router.json',
     linkFile        = '/mnt/dtou/th_links.json',
     cacheFlag       = process.env.TH_CACHE == 'true',
@@ -89,11 +90,11 @@ var _TelehashUtil = function(reqHandler) {
                 if (req.method == 'POST') {
                     req.pipe(cs(function(body) {
                         var payload = JSON.parse(body.toString());
-                        console.info('--> [thtp] incoming request', payload);
+                        console.info('<-- [thtp] incoming request', payload);
                         resp.setHeader('Content-Type', 'application/json');
                         if(reqHandler && typeof reqHandler === 'function') {
-                            reqHandler(payload).then(function(out){
-                                console.info('--> [thtp] handler finished, sending out', out)
+                            reqHandler(payload, req.hashname).then(function(out){
+                                console.info('--> [thtp] handler finished, sending out', out);
                                 resp.end(JSON.stringify(out));
                             });
                         } else {
@@ -114,7 +115,7 @@ var _TelehashUtil = function(reqHandler) {
             accept().pipe(es.writeArray(function(e, items){
                 console.log('--> [stream] from ', link.hashname, ' received ', items);
                 if(reqHandler && typeof reqHandler === 'function') {
-                    var out = reqHandler(items);
+                    var out = reqHandler(items, req.hashname);
                 }
             }));
         }
@@ -142,7 +143,7 @@ var _TelehashUtil = function(reqHandler) {
                 // - accept any link
                 created.accept = function (inc) {
                     // console.log('--> incoming from', {"hashname": inc.hashname, "paths": inc.paths});
-                    console.info('--> incoming link from', inc.hashname);
+                    console.info('<-- incoming link from', inc.hashname);
                     // - establishes link from any incoming req
                     var link = created.link(inc);
 
@@ -264,7 +265,7 @@ var _TelehashUtil = function(reqHandler) {
                 const req = link.request(ops, function(resp) {
                     resp.pipe(cs(function(body) {
                         var payload = JSON.parse(body.toString());
-                        console.log('--> [thtp] incoming response', payload);
+                        console.log('<-- [thtp] incoming response', payload);
                         if(respHandler && typeof respHandler === 'function') {
                             payload = respHandler(payload);
                         }

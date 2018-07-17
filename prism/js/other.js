@@ -14,6 +14,7 @@ angular.module('dtouprism')
 
         if(data.dtou && data.dtou.definitions){
             ui.peer = data.dtou.definitions;
+            ui.consumer = data.consumer;
         }
 
         $scope.serialise = (s) => JSON.stringify(s);
@@ -52,6 +53,7 @@ angular.module('dtouprism')
 
                 agreement.definitions.substitute = ui.substitute;
                 agreement.definitions.sign = ui.sign;
+                agreement.consumer = (ui.consumer) ? ui.consumer : agreement.consumer;
 
                 if (ui.sign) {
                     // TODO - implement crypto

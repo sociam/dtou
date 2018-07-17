@@ -32,6 +32,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             });
         },
         openTab = (path, tweet, extras) => {
+            console.log('extras:', extras)
             port.postMessage({
                 cmd: 'openTab',
                 // url: [path, '?', $.param(_.extend({id:tweet.id, active:true}, extras))].join(''),
@@ -65,14 +66,13 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             //     .prependTo(sel);
             $(`<li class="dtou-dropdown"><button type="button" class="dropdown-link">View/Modify DToU Declarations</button></li>`)
                 .on('click', function() {
-                    console.log('click create dtou ');
                     openTab('/create.html', tweetData);
                     $('.dropdown').removeClass('open');
                     return true;
                 }).prependTo(sel);
         },
         saveTweet = (twt) => {
-            console.log('saving tweet >> ', twt);
+            console.info('saving tweet >> ', twt);
             port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt)});
         },
         guid = function(len) {
@@ -125,7 +125,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             var got_model = askBg({cmd:'get_model', id:tweetData.id});
             var peer_resp = got_model.then((got) => {
                 var payload = _.merge((got.data) ? got.data : tweetData, {id:tweetData.id});
-                console.log('asking for', payload);
+                console.info('asking for', payload);
                 return askBg({cmd:'ask_peer', id:tweetData.id, payload:payload});
             });
             return Promise.all([got_model, peer_resp]).then((pair) => {
@@ -153,7 +153,13 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         }).prependTo(sel);
                     } else {
                         btn.on('click', function () {
-                            openTab('/other.html', tweetData, peerData.data);
+                            var consumer = {
+                                twitter: {
+                                    author:profile.screenName,
+                                    authorid:profile.userId
+                                }
+                            }
+                            openTab('/other.html', tweetData, _.extend(peerData.data, {consumer:consumer}));
                             $('.dropdown').removeClass('open');
                             return true;
                         }).prependTo(sel);
@@ -200,6 +206,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 // console.info('updating dom');
                 // domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
                 if (profile === undefined) profile = extract_profile();
+                console.log('profile', profile);
 
                 // visible tweets ...
                 // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));

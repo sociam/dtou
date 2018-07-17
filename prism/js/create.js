@@ -12,7 +12,7 @@ angular.module('dtouprism')
         $scope.$l = $location;
 
         $scope.serialise = (s) => JSON.stringify(s);
-        bg.getCollectionWrapped('items').then((collection) => {
+        bg.getCollectionWrapped('items', {force:true}).then((collection) => {
             console.log(`got collection ${collection.models.length}, ${oid}, ${url}`);
             $timeout(() => {
                 $scope.items = collection.models; 

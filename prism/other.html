@@ -46,10 +46,11 @@
         <!--<table>-->
         <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
         <!--</table>-->
+        <div class="small" ng-bind="'Acting as: @'+ui.consumer.twitter.author+' ('+ui.consumer.twitter.authorid+')'" ></div>
         <table class="table">
             <tr ng-show="ui.peer">
                 <th>Terms</th>
-                <th>My Settings</th>
+                <th>My Agreements</th>
                 <th class="">Details</th>
             </tr>
             <tr ng-show="!ui.peer">

@@ -86,13 +86,13 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
             announce({type:'event', evt:'togglecp', page:page, val: val });
         },
         getEnabledContentPages = () => enabled_prisms,
-        getCollectionWrapped = (name, override) => {
-            if(conf.storage_location && !override){
+        getCollectionWrapped = (name, options) => {
+            if(conf.storage_location && !_.get(options, ['override'])){
                 // - TODO make this not a hack
                 var stripped = conf.storage_location.replace(/^\/|\/$/g, '');
-                return storage.getCollection(_.join([stripped, name], '/'));
+                return storage.getCollection(_.join([stripped, name], '/'), _.omit(options, ['override']));
             }
-            return storage.getCollection(name);
+            return storage.getCollection(name, options);
         },
         announce,
         makeAnnounce = (port) => {
