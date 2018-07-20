@@ -37,5 +37,5 @@
     "persistent": true
   },
 
-  "web_accessible_resources": ["img/prism.png", "lib/bootstrap/*"]
+  "web_accessible_resources": ["img/prism.png", "lib/bootstrap/*", "lib/components-font-awesome"]
 }

@@ -47,6 +47,9 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
                     // port.postMessage(_(msg).chain().clone().extend({id: got}).value());
                 });
             },
+            'getAcls': (msg) => {
+                return dataLayer.getAcls(conf.dtou_ctr);
+            },
             'get_token': (msg) => {
                 port.postMessage(_.extend(msg, {token: dataLayer.token}));
             },
@@ -152,6 +155,10 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
         window.getEnabledContentPages = getEnabledContentPages;
         // - wrap the storage shim with remote pdb
         window.getCollectionWrapped = getCollectionWrapped;
+        window.getAcls = function() {
+            return dataLayer.getAcls(conf.dtou_ctr);
+        };
+        window.extract = dataLayer.extract;
         // window.dataLayer = dataLayer;
         // window._st = storage;
     });

@@ -1,13 +1,14 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<meta charset="utf-8" />
+		<meta charset="utf-8"/>
         <link rel="stylesheet/less" href="css/create.less">
+        <link rel="stylesheet/less" href="lib/components-font-awesome/less/fontawesome.less">
         <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.min.css">
 
         <script type="text/javascript" src="lib/less/dist/less.js"></script>
 		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
-        <script type="text/javascript" src="lib/bootstrap/dist/js/bootstrap.min.js"></script>"
+        <script type="text/javascript" src="lib/bootstrap/dist/js/bootstrap.min.js"></script>
 
         <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
 		<script type="text/javascript" src="lib/backbone/backbone.js"></script>					
@@ -20,7 +21,6 @@
 		<script type="text/javascript" src="js/remote.js"></script>		
 		<script type="text/javascript" src="js/explore.js"></script>
 		<script type="text/javascript" src="js/create.js"></script>		
-		<title></title>
 	</head>
 	<body ng-app="dtouprism" ng-controller="create">
 
@@ -28,8 +28,11 @@
             <img src="img/prism.png" id="logo">
             <h1> Data Terms of Use (DToU) </h1>
         </div>
-
-        <div class="container col-8">
+        <div class="container col-8 text-center" ng-show="ui.loading">
+            <img src="img/loading.png" class="fa-spin">
+            <div class="small" ng-show="ui.loadingLong">Unusually long loading time... check your settings.</div>
+        </div>
+        <div class="container col-8 pb-5" ng-show="!ui.loading">
             <div class="dtoucontrols m-2" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
                 <!-- <pre ng-bind="selected.id"></pre> -->
                 <h2> <div ng-bind="'Selected Tweet (Mine: @'+ui.author+')'"></div></h2>
@@ -56,9 +59,14 @@
                     </thead>
                     <tbody>
                         <tr>
+                            <td>Content Disclaimer</td>
+                            <td><input type="checkbox" ng-model="ui.disclaimer"></td>
+                            <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.disclaimer" ng-model="ui.disclaimerHtml"></td>
+                        </tr>
+                        <tr>
                             <td>Hidden Content</td>
                             <td><input type="checkbox" ng-model="ui.substitute"></td>
-                            <td class='value'><input class='' type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
+                            <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
                         </tr>
                         <tr>
                             <td>Read-Receipts</td>
@@ -67,12 +75,12 @@
                         </tr>
                         <tr ng-show="ui.pingback">
                             <td>Read Time</td>
-                            <td><input class="" type="number" ng-model="ui.readtime" min="0" ></td>
+                            <td><input class="slim-input" type="number" ng-model="ui.readtime" min="0" ></td>
                             <td class='value' ng-bind="'minutes allowed for each read (requires read-receipts)'"></td>
                         </tr>
                         <tr ng-show="ui.pingback">
                             <td>Delete-on-Read #</td>
-                            <td><input class="" type="number" ng-model="ui.delete" min="0"></td>
+                            <td><input class="slim-input" type="number" ng-model="ui.delete" min="0"></td>
                             <td class='value' ng-bind="ui.delete ? 'content deleted after '+ui.delete+' reads (requires read-receipts)' : 'disabled'"></td>
                         </tr>
                         <tr>

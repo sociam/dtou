@@ -3,7 +3,7 @@
 console.log('hello --- other!');
 
 angular.module('dtouprism')
-    .controller('other', function($scope, storage, utils, $location, $timeout, $sce) {
+    .controller('other', function($scope, utils, $location, $timeout, $sce) {
         var bg = chrome.extension.getBackgroundPage(),
             url = $location.absUrl(),
             oid = utils.getUrlParam(url, 'id'),
@@ -11,11 +11,13 @@ angular.module('dtouprism')
             ui = $scope.ui = {};
 
         $scope.$l = $location;
+        ui.loading = true;
+        ui.loadingLong = false;
 
-        if(data.dtou && data.dtou.definitions){
-            ui.peer = data.dtou.definitions;
-            ui.consumer = data.consumer;
-        }
+        $timeout(function(){
+            ui.loadingLong = ui.loading;
+        }, 10000);
+
 
         $scope.serialise = (s) => JSON.stringify(s);
         bg.getCollectionWrapped('items').then((collection) => {
@@ -36,6 +38,12 @@ angular.module('dtouprism')
                         };
                     }
                     // console.log("selected >> ", $scope.selected);
+                }
+                if(data.dtou && data.dtou.definitions){
+                    ui.peer = data.dtou.definitions;
+                    ui.consumer = data.consumer;
+                    ui.loading = false;
+                    ui.loadingLong = false;
                 }
             });
             $scope.$watchCollection($scope.items, () => { console.log(' items changed ', $scope.items.length ); });
@@ -61,7 +69,7 @@ angular.module('dtouprism')
                 m.set('agreement', agreement);
                 $scope.selected.save().then(() => {
                     console.log(`model updated ${m.id}`, agreement);
-                    setTimeout(function() {
+                    $timeout(function() {
                         window.close();
                     }, 200);
                 });

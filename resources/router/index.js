@@ -93,9 +93,9 @@ var dtouRouter = function(thUtils) {
     // - uses same data model as stored in pdb for convenience
     _dtouRouter.route('/ask_peer')
         .post(function(req, resp, next) {
-            console.log('--> post /definitions', req.body);
+            console.log('--> post /ask_peer', req.body);
             // - TODO make this more generic for media besides thtp
-            if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/definitions missing field: endpoint", {}));
+            if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/ask_peer missing field: endpoint", {}));
             // _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
             //         var updated = dtouUtils.outboundCheckDtou(req.body.payload);
             dtouUtils.outboundProcessDtou(req.body.payload).then(function(updated) {
@@ -104,10 +104,34 @@ var dtouRouter = function(thUtils) {
                 resp.send(out);
             }).catch(function(e) {
                 return next(e);
-            // return thUtils.fire(updated, req.body.endpoint).then(function(out){
-            //     resp.send(out);
-            // }).catch(function(e) {
-            //     return next(e);
+            });
+        });
+
+    _dtouRouter.route('/roles')
+        .get(function(req, resp, next) {
+            console.log('--> get /dtou/roles');
+            dtouUtils.getRolesToDtou().then(function(got) {
+                resp.send(got);
+            }).catch(function(e) {
+                return next(e);
+            });
+        })
+        .post(function(req, resp, next) {
+            // - helper function to wrap 1 http call per acl update
+            console.log('--> post /dtou/roles');
+            if(!req.body.roles) return next(new BadRequestException("POST /dtou/roles missing field: roles", {}));
+            dtouUtils.setRolesToDtou(req.body.roles, req.body.dtou ? req.body.dtou : {}).then(function(got) {
+                return dtouUtils.addRolesToResources(req.body.roles, req.body.resources ? req.body.resources : []);
+            }).then(function(got) {
+                return dtouUtils.addRolesToUsers(req.body.roles, req.body.identifiers ? req.body.identifiers : []);
+            }).then(function(got) {
+                dtouUtils.getRolesToDtou().then(function(got){
+                    resp.send(got.filter(function(x) {
+                        return req.body.roles.indexOf(x._id) >= 0;
+                    }));
+                });
+            }).catch(function(e) {
+                return next(e);
             });
         });
 
@@ -139,7 +163,8 @@ var bootstrap = function() {
         app.use(function(e, req, resp, next) {
             console.error('--> exception:', e.stack);
             if (e.status) return resp.status(e.status).send({"error": e.message, "details": e.details});
-            next(e);
+            resp.status(400).send({"error": e.message, "details": e.details})
+            // next(e);
         });
 
         // - listen to the default port

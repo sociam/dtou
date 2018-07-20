@@ -14,17 +14,20 @@ function PouchException(msg, wrapped, status) {
     e.status = status ? status : 500;
     return e;
 }
+var _name = function(name, override) {
+    if (name && override) {
+        return name;
+    } else if (name) {
+        var u = new URL(dname);
+        return [u.protocol+'/', u.host, name].join('/');
+    } else {
+        return dname;
+    };
+}
 
 var _database = function(name, override) {
     return new Promise(function(resolve, reject) {
-        var db = {};
-        if (name && override) {
-            db = new PouchDB(name);
-        } else if (name) {
-            db = new PouchDB([dname, name].join('/'));
-        } else {
-            db = new PouchDB(dname);
-        };
+        var db = new PouchDB(_name(name, override));
         db.info(function(e, res) {
             if(e){
                 console.error(e);
@@ -36,36 +39,41 @@ var _database = function(name, override) {
 };
 
 // - fakes a backbone model get
-var _getModel = function(id) {
-    return _database().then(function(db) {
+var _getModel = function(name, id) {
+    return _database(name).then(function(db) {
         return db.get(id);
     }).catch(function(e) {
         return Promise.reject(new PouchException("get failure", e));
     });
 };
 
+var _getModels = function(name) {
+    return _database(name).then(function(db) {
+        return db.allDocs({include_docs: true}).then(function(res){
+            return res.rows.map(function(entry){
+                return entry.doc;
+            });
+        });
+
+    }).catch(function(e) {
+        return Promise.reject(new PouchException("get all failure", e));
+    })
+}
+
 // - uses pdb upsert to update dtou statements for concurrency control
 // - fakes storage2 functionality --> port back to browser by wrapping storage2 instead of upsert
-var _upsert = function(id, fun) {
-    return _database().then(function(db) {
+var _upsert = function(name, id, fun) {
+    return _database(name).then(function(db) {
         return db.upsert(id, fun);
     }).catch(function(e) {
         return Promise.reject(new PouchException("upsert failure", e));
     });
 };
 
-// _getModel('tweet-997114751212666880').then(function(out) {
-//     console.log(out);
-//     console.log('updating');
-//     var go = function (m) {
-//
-//     };
-//     return _upsert('tweet-997114751212666880', );
-// }).catch(function(e) {
-//     console.log(e.stack);
-// });
 
 module.exports = {
+    db: _database,
     get: _getModel,
+    getAll: _getModels,
     update: _upsert
 };

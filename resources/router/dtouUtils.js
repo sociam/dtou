@@ -1,5 +1,10 @@
 const storageUtils  = require('./storageUtils'),
     _               = require('lodash'),
+    Acl             = require('node_acl_pouchdb'),
+    defaultdbName   = 'items',
+    roledbName      = 'roles',
+    acldbName       = 'acl',
+    defaultPerms    = ['read']
     commands        = {
         get_defs: 'get_defs',
         process_dtous: 'process_dtous'
@@ -16,22 +21,102 @@ function DtouException(msg, wrapped, status) {
     return e;
 }
 
-var handlers = {
+// - acls (they're actually more of an rbac in this instance) for 3 mappings:
+//   roles --> dtous, handled with simple custom logic
+//   roles --> resources (items/<id>; simple r access) and roles --> users (thjs hn), handled with node_acl_pouchdb
+// - for now we're not using anything additional to read permissions
+var getAllRoleNames = function() {
+        return storageUtils.getAll(roledbName).then(function(roles) {
+            return roles.map(function(role) {return role._id});
+        })
+    },
+    getRolesToDtou = function(roleNames) {
+        return storageUtils.getAll(roledbName).then(function(roles) {
+            // - we do one big getAll and then filter instead of Promise.all -- more performant
+            var chosen = roles.filter(function(role){return !roleNames || roleNames.includes(role._id)})
+                .map(function(role){return role._id});
+            var merged = roles;
+            return getRolesToResources(chosen).then(function(roles2) {
+                // - this part is just a tricky way of merging two separate lists of roles:dtou and roles:resources
+                merged = merged.map(function(role){
+                    var found = roles2.find(function(r){return r.role === role._id});
+                    return _.merge(role, {resources:found ? Object.keys(found.resources) : []});
+                });
+                return getRolesToUsers(chosen);
+            }).then(function(roles2){
+                // - and then merging roles:users
+                merged = merged.map(function(role){
+                    var found = roles2.find(function(r){return r.role === role._id});
+                    return _.merge(role, {users:found ? found.users : []});
+                });
+                return merged;
+            });
+        });
+    },
+    getRolesToResources = function(roles) {
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(roles.map(function(role){
+                return acl.whatResources(role).then(function(out){
+                    return {role:role, resources:out};
+                });
+            }));
+        });
+    },
+    getRolesToUsers = function(roles) {
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(roles.map(function(role){
+                return acl.roleUsers(role).then(function(out) {
+                    return {role:role, users:out};
+                })
+            }))
+        })
+    },
+    setRolesToDtou = function(roles, dtou) {
+        return Promise.all(roles.map(function(role) {
+            return storageUtils.update(roledbName, role, function(prev){
+                if(!prev || !prev.dtou) return {dtou:dtou};
+                return {dtou:_.merge(prev.dtou, dtou)};
+            });
+        })).then(function(got) {
+            return got;
+        });
+    },
+    addRolesToResources = function(roles, resources) {
+        return storageUtils.db(acldbName).then(function(db){
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(roles.map(function(role) {
+                return acl.allow(role, resources, defaultPerms);
+            })).then(function(out) {
+                return out;
+            });
+        });
+    },
+    getUserToRoles = function(id) {
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return acl.userRoles(id);
+        });
+    },
+    addRolesToUsers = function(roles, users) {
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(users.map(function(user) {
+                return acl.addUserRoles(user, roles);
+            })).then(function(out) {
+                return out;
+            });
+        });
+    },
+    handlers = {
         _substituteHandler: {
-            inbound: function(data) {
-
-            },
-            outbound: function(data) {
-
-            }
+            inbound: function(data) {},
+            outbound: function(data) {}
         },
         _pingbackHandler: {
-            inbound: function(data) {
-
-            },
-            outbound: function(data) {
-
-            }
+            inbound: function(data) {},
+            outbound: function(data) {}
         }
     },
     outboundProcessDtou = function(blob) {
@@ -50,10 +135,11 @@ var handlers = {
         // - B processes incoming request for dtou definitions from A, send them out
         if(blob.type === dtouTypes.tweet) {
             if(!blob.id) throw new DtouException('blob missing field: id');
-            return storageUtils.get(blob.id).then(function(got){
+            return storageUtils.get(defaultdbName, blob.id).then(function(got){
                 if(got.dtou) got.dtou.secrets = {};
                 return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
             }).catch(function(e) {
+                console.error(e);
                 return {error: e.message};
             });
         }
@@ -63,7 +149,7 @@ var handlers = {
         // - TODO all DTOU logic will go here, e.g. future project: DTOU spec lang
         if(blob.type === dtouTypes.tweet) {
             if(!blob.id) throw new DtouException('blob missing field: id');
-            return storageUtils.get(blob.id).then(function(got){
+            return storageUtils.get(defaultdbName, blob.id).then(function(got){
                 var myDtou = got.dtou,
                     theirAgreement = blob.agreement,
                     consumer = blob.agreement.consumer,
@@ -80,9 +166,9 @@ var handlers = {
                     // - if pingback and delete, check if incoming request for data consumption reaches limit
                     var c = _.get(newSecrets, ['pingbackData', dtou_identifier, 'count'], 0),
                         d = _.get(myDtou, ['definitions', 'delete'], 0),
-                        limitReached = myDtou.definitions.pingback && c > d;
+                        limitReached = myDtou.definitions.pingback && myDtou.definitions.delete && c > d;
                     if(limitReached){
-                        myDtou.secrets.substituteHtml = 'Read-limit reached; content removed.';
+                        myDtou.secrets.substituteHtml = '<i>Read-limit reached; content removed.</i>';
                     }
                     // - otherwise, modify my secrets
                     else if (myDtou.definitions.pingback){
@@ -105,7 +191,7 @@ var handlers = {
                         _.set(newSecrets, ['pingbackData', dtou_identifier, 'authorid'], _.get(consumer, ['twitter', 'authorid']));
                     }
                     // - ensure that we've updated our own secrets first before releasing outgoing data
-                    return storageUtils.update(blob.id, function(item){
+                    return storageUtils.update(defaultdbName, blob.id, function(item){
                         item.dtou.secrets = newSecrets;
                         return item;
                     }).then(function(){
@@ -113,6 +199,9 @@ var handlers = {
                         return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
                     });
                 }
+            }).catch(function(e) {
+                console.error(e);
+                return {error: e.message};
             });
         }
     },
@@ -133,6 +222,13 @@ var handlers = {
     };
 
 module.exports = {
+    getRolesToDtou: getRolesToDtou,
+    getRoleToResource: getRolesToResources,
+    getRolesToUsers: getRolesToUsers,
+    setRolesToDtou: setRolesToDtou,
+    addRolesToResources: addRolesToResources,
+    getUserToRoles: getUserToRoles,
+    addRolesToUsers: addRolesToUsers,
     outboundProcessDtou: outboundProcessDtou,
     inboundController: inboundController
 }

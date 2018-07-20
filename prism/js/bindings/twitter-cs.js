@@ -71,9 +71,9 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     return true;
                 }).prependTo(sel);
         },
-        saveTweet = (twt) => {
+        saveTweet = (twt, options) => {
             console.info('saving tweet >> ', twt);
-            port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt)});
+            port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt, options)});
         },
         guid = function(len) {
             len = len || 64;
@@ -112,10 +112,6 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     $(tweet).find('.js-tweet-text-container').append(things);
                     // $($(tweet).find('.js-tweet-text-container p')[0]).hide();
                 }
-                // - pingback dtou
-                if (response.data.dtou.definitions.pingback) {
-
-                }
             }).then((res) => {
                 if (cb && typeof cb === 'function') cb();
                 return res;
@@ -134,32 +130,41 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     peerData = pair[1];
 
                 if ($(tweet).find('li.dtou-dropdown').length === 0) {
-                    // - add menu for accepting dtous
                     console.info('>> got peer dtou', peerData.data);
                     let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
                     $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
+                    // - add menu for recognising peer dtou user
+                    let recognise = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">Recognise DToU User</button></li>');
+                    // - add menu for accepting dtous
                     let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
                     if (!peerData.data || peerData.data.error) {
-                        btn.find('button')
-                            .addClass('js-tooltip')
-                            .attr('data-original-title', 'connection error; check DToU settings')
-                            .attr('data-delay', '0');
-                        btn.on('mouseenter', function () {
-                            btn.find('button').addClass('in');
-                            return true;
-                        }).on('mouseleave', function () {
-                            btn.find('button').removeClass('in');
+                        [btn, recognise].map((item) => {
+                            item.find('button')
+                                .addClass('js-tooltip')
+                                .attr('data-original-title', 'connection error; check DToU settings')
+                                .attr('data-delay', '0');
+                            item.on('mouseenter', function () {
+                                item.find('button').addClass('in');
+                                return true;
+                            }).on('mouseleave', function () {
+                                item.find('button').removeClass('in');
+                                return true;
+                            }).prependTo(sel);
+                        });
+                    } else {
+                        let consumer = {
+                            twitter: {
+                                author:profile.screenName,
+                                authorid:profile.userId
+                            }
+                        };
+                        btn.on('click', () => {
+                            openTab('/other.html', tweetData, _.extend(peerData.data, {consumer:consumer}));
+                            $('.dropdown').removeClass('open');
                             return true;
                         }).prependTo(sel);
-                    } else {
-                        btn.on('click', function () {
-                            var consumer = {
-                                twitter: {
-                                    author:profile.screenName,
-                                    authorid:profile.userId
-                                }
-                            }
-                            openTab('/other.html', tweetData, _.extend(peerData.data, {consumer:consumer}));
+                        recognise.on('click', () => {
+                            openTab('/permissions.html', tweetData, _.extend(peerData.data, {consumer:consumer}));
                             $('.dropdown').removeClass('open');
                             return true;
                         }).prependTo(sel);
@@ -189,14 +194,14 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             // var decoded = $(tweetDOM).data('') && JSON.parse($(tweetDOM)
             return {
                 id:'tweet-'+$(tweetDOM).data('tweet-id'),
-                twitterId:$(tweetDOM).data('tweet-id'),
                 type:'tweet',
-                conversationId:$(tweetDOM).data('conversation-id'),
                 authorid: $(tweetDOM).data('user-id'),
                 author: $(tweetDOM).data('screen-name'),
                 mentions:$(tweetDOM).data('mentions'),
                 text:$(tweetDOM).find('.js-tweet-text-container').text(),
-                html:$(tweetDOM).find('.js-tweet-text-container')[0].innerHTML
+                html:$(tweetDOM).find('.js-tweet-text-container')[0].innerHTML,
+                twitterId:$(tweetDOM).data('tweet-id'),
+                conversationId:$(tweetDOM).data('conversation-id')
             };
         },
         update_dom = () => {
@@ -235,7 +240,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
                             var tweetData = extractTweet(tweet);
                             augmenting.add(tweetData.id);
-                            saveTweet(tweetData);
+                            saveTweet(tweetData, {mine:true});
                             addMenu(tweet, tweetData);
                             augment(tweet, tweetData, () => {rm(tweetData.id)});
                         }
@@ -247,7 +252,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
                             var tweetData = extractTweet(tweet);
                             augmenting.add(tweetData.id);
-                            saveTweet(tweetData);
+                            saveTweet(tweetData, {mine:false});
                             addMenuAndAugmentOther(tweet, tweetData, () => {rm(tweetData.id)});
                         }
                     });

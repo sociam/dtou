@@ -11,6 +11,9 @@ angular.module('dtouprism')
             types   = {
                 tweet:  'tweet'
             },
+            headers = {
+                'content-type': 'application/json'
+            },
             medium = media.telehash;
 
         var utils = {
@@ -19,6 +22,23 @@ angular.module('dtouprism')
                 else if(payload.type === types.tweet){
                     return thdata.extractFromText(payload.text);
                 }
+            },
+            getAcls: function(local) {
+                return new Promise(function(resolve, reject) {
+                    var out = new URL(local);
+                    out.pathname = 'dtou/roles';
+                    $http({
+                        method: 'GET',
+                        url: out.href,
+                        headers: headers,
+                    }).then(function (resp) {
+                        console.info('>> roles received', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        console.error('>> failed to retrieve roles', e);
+                        resolve((e.data) ? e.data : {error:'check configurations'});
+                    });
+                });
             }
         };
 

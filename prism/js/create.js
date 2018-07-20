@@ -10,6 +10,12 @@ angular.module('dtouprism')
             ui = $scope.ui = {};
 
         $scope.$l = $location;
+        ui.loading = true;
+        ui.loadingLong = false;
+
+        $timeout(function(){
+            ui.loadingLong = ui.loading;
+        }, 10000);
 
         $scope.serialise = (s) => JSON.stringify(s);
         bg.getCollectionWrapped('items', {force:true}).then((collection) => {
@@ -24,6 +30,8 @@ angular.module('dtouprism')
                         var dtou = m.attributes.dtou;
                         ui.substitute = dtou.definitions.substitute;
                         ui.substituteHtml = dtou.secrets.substituteHtml;
+                        ui.disclaimer = dtou.definitions.disclaimer;
+                        ui.disclaimerHtml = dtou.definitions.disclaimerHtml;
                         ui.pingback = dtou.definitions.pingback;
                         ui.pingbackData = dtou.secrets.pingbackData;
                         ui.delete = dtou.definitions.delete;
@@ -32,6 +40,8 @@ angular.module('dtouprism')
                     };
                     // console.log("selected >> ", $scope.selected);
                 }
+                ui.loading = false;
+                ui.loadingLong = false;
             });
             $scope.$watchCollection($scope.items, () => { console.log(' items changed ', $scope.items.length ); });
         });
@@ -51,8 +61,10 @@ angular.module('dtouprism')
                 dtou.definitions.delete = ui.delete;
                 dtou.definitions.readtime = ui.readtime;
                 dtou.definitions.sign = ui.sign;
+                dtou.definitions.disclaimer = ui.disclaimer;
 
                 if (ui.substitute) dtou.secrets.substituteHtml = ui.substituteHtml;
+                if (ui.disclaimer) dtou.definitions.disclaimerHtml = ui.disclaimerHtml;
                 if (ui.pingback) dtou.secrets.pingbackData = (dtou.secrets.pingbackData) ? dtou.secrets.pingbackData : {};
                 if (ui.sign) {
                     // TODO - implement crypto
@@ -60,7 +72,7 @@ angular.module('dtouprism')
                 m.set('dtou', dtou);
                 $scope.selected.save().then(() => {
                     console.log(`model updated ${m.id}`, dtou);
-                    setTimeout(function() {
+                    $timeout(function() {
                         window.close();
                     }, 200);
                 });

@@ -68,11 +68,17 @@
   .card-columns {
     column-count: 2;
   }
+  .wide-input {
+    min-width:100px;
+  }
 }
 
 @media (min-width: 768px) {
   .card-columns {
     column-count: 3;
+  }
+  .wide-input {
+    min-width:300px;
   }
 }
 
@@ -80,10 +86,24 @@
   .card-columns {
     column-count: 4;
   }
+  .wide-input {
+    min-width:400px;
+  }
 }
 
 @media (min-width: 1200px) {
   .card-columns {
     column-count: 5;
   }
+  .wide-input {
+    min-width:500px;
+  }
+}
+
+.slim-input {
+  max-width:80px;
+}
+
+.borderless td, .borderless th, .borderless tr {
+  border: none !important;
 }
