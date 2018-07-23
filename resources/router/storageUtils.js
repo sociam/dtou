@@ -60,7 +60,7 @@ var _getModels = function(name) {
     })
 }
 
-// - uses pdb upsert to update dtou statements for concurrency control
+// - uses pdb upsert to update dtou statements for currency control / transaction
 // - fakes storage2 functionality --> port back to browser by wrapping storage2 instead of upsert
 var _upsert = function(name, id, fun) {
     return _database(name).then(function(db) {
@@ -70,10 +70,19 @@ var _upsert = function(name, id, fun) {
     });
 };
 
+var _delete = function(name, item) {
+    return _database(name).then(function(db) {
+        return db.remove(item);
+    }).catch(function(e) {
+        return Promise.reject(new PouchException("deletion failure", e));
+    });
+}
+
 
 module.exports = {
     db: _database,
     get: _getModel,
     getAll: _getModels,
-    update: _upsert
+    update: _upsert,
+    delete: _delete
 };

@@ -39,6 +39,43 @@ angular.module('dtouprism')
                         resolve((e.data) ? e.data : {error:'check configurations'});
                     });
                 });
+            },
+            setAcls: function(local, acls) {
+                return new Promise(function(resolve, reject) {
+                    console.info('setting acl', acls);
+                    var out = new URL(local);
+                    out.pathname = 'dtou/roles';
+                    $http({
+                        method: 'POST',
+                        url: out.href,
+                        headers: headers,
+                        data: acls
+                    }).then(function (resp) {
+                        console.info('>> roles updated', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        console.error('>> failed to update roles', e);
+                        resolve((e.data) ? e.data : {error:'check configurations'});
+                    });
+                });
+            },
+            deleteAcls: function(local, acls) {
+                return new Promise(function(resolve, reject) {
+                    var out = new URL(local);
+                    out.pathname = 'dtou/roles';
+                    $http({
+                        method: 'DELETE',
+                        url: out.href,
+                        headers: headers,
+                        data: acls
+                    }).then(function (resp) {
+                        console.info('>> roles deleted', resp.data);
+                        resolve(resp.data);
+                    }, function (e) {
+                        console.error('>> failed to delete roles', e);
+                        resolve((e.data) ? e.data : {error:'check configurations'});
+                    });
+                });
             }
         };
 

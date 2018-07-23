@@ -158,6 +158,12 @@ angular.module('dtouprism').controller('bg', function($scope, storage, utils, da
         window.getAcls = function() {
             return dataLayer.getAcls(conf.dtou_ctr);
         };
+        window.setAcls = function(acls) {
+            return dataLayer.setAcls(conf.dtou_ctr, acls);
+        };
+        window.deleteAcls = function(acls) {
+            return dataLayer.deleteAcls(conf.dtou_ctr, acls);
+        };
         window.extract = dataLayer.extract;
         // window.dataLayer = dataLayer;
         // window._st = storage;

@@ -33,21 +33,21 @@ var getAllRoleNames = function() {
     getRolesToDtou = function(roleNames) {
         return storageUtils.getAll(roledbName).then(function(roles) {
             // - we do one big getAll and then filter instead of Promise.all -- more performant
-            var chosen = roles.filter(function(role){return !roleNames || roleNames.includes(role._id)})
-                .map(function(role){return role._id});
-            var merged = roles;
-            return getRolesToResources(chosen).then(function(roles2) {
+            var chosen = roles.filter(function(role){return !roleNames || roleNames.includes(role._id)});
+            var chosenNames = chosen.map(function(role){return role._id});
+            var merged = chosen;
+            return getRolesToResources(chosenNames).then(function(roles2) {
                 // - this part is just a tricky way of merging two separate lists of roles:dtou and roles:resources
                 merged = merged.map(function(role){
                     var found = roles2.find(function(r){return r.role === role._id});
                     return _.merge(role, {resources:found ? Object.keys(found.resources) : []});
                 });
-                return getRolesToUsers(chosen);
+                return getRolesToUsers(chosenNames);
             }).then(function(roles2){
                 // - and then merging roles:users
                 merged = merged.map(function(role){
                     var found = roles2.find(function(r){return r.role === role._id});
-                    return _.merge(role, {users:found ? found.users : []});
+                    return _.merge(role, {identifiers:found ? found.identifiers : []});
                 });
                 return merged;
             });
@@ -68,7 +68,7 @@ var getAllRoleNames = function() {
             let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
             return Promise.all(roles.map(function(role){
                 return acl.roleUsers(role).then(function(out) {
-                    return {role:role, users:out};
+                    return {role:role, identifiers:out};
                 })
             }))
         })
@@ -76,18 +76,25 @@ var getAllRoleNames = function() {
     setRolesToDtou = function(roles, dtou) {
         return Promise.all(roles.map(function(role) {
             return storageUtils.update(roledbName, role, function(prev){
-                if(!prev || !prev.dtou) return {dtou:dtou};
-                return {dtou:_.merge(prev.dtou, dtou)};
+                // if(!prev || !prev.dtou) return {dtou:dtou};
+                // return {dtou:_.merge(prev.dtou, dtou)};
+                return {dtou:dtou};
             });
         })).then(function(got) {
             return got;
         });
     },
-    addRolesToResources = function(roles, resources) {
+    setRolesToResources = function(roles, resources, existing) {
+        // - TODO: make this a transaction
+        // - two-phased acl updater; add new resources to roles and remove pre-existing resources that are not included
         return storageUtils.db(acldbName).then(function(db){
-            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName)),
+                toAdd = resources.filter(function(resource){return !existing || !existing.includes(resource)}),
+                toRemove = existing ? existing.filter(function(resource) {return !resources.includes(resource)}) : [];
             return Promise.all(roles.map(function(role) {
-                return acl.allow(role, resources, defaultPerms);
+                return acl.allow(role, toAdd, defaultPerms).then(function(){
+                    return acl.removeAllow(role, toRemove, defaultPerms);
+                });
             })).then(function(out) {
                 return out;
             });
@@ -99,16 +106,53 @@ var getAllRoleNames = function() {
             return acl.userRoles(id);
         });
     },
-    addRolesToUsers = function(roles, users) {
+    setUsersToRoles = function(newIdentifiers, newRoles, existingMap) {
+        // - TODO: make this a transaction
+        // - same as setRolesToResources but for users; add new users and remove pre-existing, non-specified users
         return storageUtils.db(acldbName).then(function(db) {
-            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
-            return Promise.all(users.map(function(user) {
-                return acl.addUserRoles(user, roles);
-            })).then(function(out) {
+            var acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(newIdentifiers.map(function(identifier) {
+                return acl.addUserRoles(identifier, newRoles);
+            })).then(function(out){
+                return Promise.all(Object.entries(existingMap).map(function([oldIdentifier, oldRoles]){
+                    let toRemove = oldRoles.filter(function(oldRole) {
+                        // - this returns true iff we are modifying a role in newRoles, and that role
+                        //   is no longer assigned to its old identifier :. remove the assignment
+                        return newRoles.includes(oldRole) && !newIdentifiers.includes(oldIdentifier);
+                    });
+                    console.info('removing', oldIdentifier, toRemove);
+                    return acl.removeUserRoles(oldIdentifier, toRemove);
+                }));
+            }).then(function(out) {
                 return out;
             });
         });
     },
+    deleteRoles = function(roleDocs) {
+        // - todo will need to implement transaction/retry logic for this function
+        console.info(roleDocs);
+        var filtered = roleDocs.filter(function(doc){return !doc._id || !doc._rev});
+        if(filtered.length != 0) throw new DtouException('role deletion requires _id and _rev');
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return Promise.all(roleDocs.map(function(doc){
+                console.info('--- remove role', doc._id);
+                return acl.removeRole(doc._id);
+            }));
+        }).then(function(res) {
+            return Promise.all(roleDocs.map(function(doc) {
+                storageUtils.delete(roledbName, doc);
+            }));
+        }).then(function(res){
+            console.info('--- deletion completed', res);
+            return roleDocs;
+        }).catch(function(e){
+            console.error(e);
+            return {error: e.message};
+        });
+    },
+    // - handlers used to process DTOUs on incoming/outgoing communication
+    // - uses a pipe-filter model
     handlers = {
         _substituteHandler: {
             inbound: function(data) {},
@@ -226,9 +270,10 @@ module.exports = {
     getRoleToResource: getRolesToResources,
     getRolesToUsers: getRolesToUsers,
     setRolesToDtou: setRolesToDtou,
-    addRolesToResources: addRolesToResources,
+    setRolesToResources: setRolesToResources,
     getUserToRoles: getUserToRoles,
-    addRolesToUsers: addRolesToUsers,
+    setUsersToRoles: setUsersToRoles,
     outboundProcessDtou: outboundProcessDtou,
-    inboundController: inboundController
-}
+    inboundController: inboundController,
+    deleteRoles: deleteRoles
+};

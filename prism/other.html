@@ -65,7 +65,7 @@
             <tr ng-show="ui.peer.substitute">
                 <td class="">Hidden Content</td>
                 <td class=""><input type="checkbox" ng-model="ui.substitute"></td>
-                <td class='value wide-input'>
+                <td class='value '>
                     <div type="text" ng-show="ui.substitute" ng-bind="ui.substituteHtml? ui.substituteHtml:'show and read content hidden by peer after refresh'"></div>
                     <div type="text" ng-show="!ui.substitute" ng-bind="'peer has embedded hidden content; enable to show'"></div>
                 </td>
@@ -73,7 +73,7 @@
             <tr ng-show="ui.substitute && ui.peer.pingback">
                 <td>Read-Receipts</td>
                 <td></td>
-                <td class='value' ng-bind="'data owner can see the number of your content reads'"></td>
+                <td class='value ' ng-bind="'data owner can see the number of your content reads'"></td>
             </tr>
             <tr ng-show="ui.substitute && ui.peer.readtime">
                 <td>Read Time</td>

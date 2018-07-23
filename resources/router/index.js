@@ -117,22 +117,71 @@ var dtouRouter = function(thUtils) {
             });
         })
         .post(function(req, resp, next) {
-            // - helper function to wrap 1 http call per acl update
-            console.log('--> post /dtou/roles');
-            if(!req.body.roles) return next(new BadRequestException("POST /dtou/roles missing field: roles", {}));
-            dtouUtils.setRolesToDtou(req.body.roles, req.body.dtou ? req.body.dtou : {}).then(function(got) {
-                return dtouUtils.addRolesToResources(req.body.roles, req.body.resources ? req.body.resources : []);
-            }).then(function(got) {
-                return dtouUtils.addRolesToUsers(req.body.roles, req.body.identifiers ? req.body.identifiers : []);
-            }).then(function(got) {
-                dtouUtils.getRolesToDtou().then(function(got){
-                    resp.send(got.filter(function(x) {
-                        return req.body.roles.indexOf(x._id) >= 0;
-                    }));
+            // - helper function to wrap an http call per acl update across dtou, users (identifiers), and resources
+            // - computationally expensive! not meant for frequent updates
+            // - TODO will need to make this a transaction
+            console.log('--> post /dtou/roles', req.body);
+            var update = function(roles, dtou, resources, identifiers) {
+                return dtouUtils.getRolesToDtou().then(function(allRoles){
+                    var filtered = allRoles.filter(function(x) {return roles.includes(x._id);}),
+                        existingResources = _.flatten(filtered.map(function(r){return r.resources})),
+                        existingUsersToRoles = {};
+                    filtered.map(function(role) {
+                        role.identifiers.map(function(id) {
+                            if (!existingUsersToRoles[id]) existingUsersToRoles[id] = [];
+                            existingUsersToRoles[id].push(role._id);
+                        })
+                    });
+                    return dtouUtils.setRolesToDtou(roles, dtou ? dtou : {}).then(function(got) {
+                        return dtouUtils.setRolesToResources(roles, resources ? resources : [], existingResources);
+                    }).then(function() {
+                        return dtouUtils.setUsersToRoles(identifiers ? identifiers : [], roles, existingUsersToRoles);
+                    }).then(function(){
+                        return dtouUtils.getRolesToDtou();
+                    }).then(function(newRoles){
+                        return newRoles.filter(function(x) {return roles.includes(x._id)});
+                    })
                 });
-            }).catch(function(e) {
-                return next(e);
-            });
+            };
+            // - allows either: 1. shorthand (one dtou for multiple roles, multiple users, multiple resources), or
+            //                  2. long description (list of separate role definitions/assignments)
+            if(req.body.roles){
+                update(req.body.roles, req.body.dtou, req.body.resources, req.body.identifiers).then(function(res){
+                    console.info('--- role:identifiers & role:resources mapping deleted', res);
+                    return resp.send(res);
+                });
+            } else if(req.body) {
+                Promise.all(req.body.map(function(role){
+                    return update([role._id], role.dtou, role.resources, role.identifiers);
+                })).then(function(res){
+                    var updated = _.flatten(res);
+                    console.info('--- role:identifiers & role:resources mapping updated', updated);
+                    return resp.send(_.flatten(updated));
+                }).catch(function(e){
+                    console.error(e);
+                    return {error:e.message};
+                });
+            } else {
+                return next(new BadRequestException('POST /dtou/roles missing body', {}));
+            }
+        })
+        .delete(function(req, resp, next) {
+            console.log('--> delete /dtou/roles');
+            // - again, allows either 1. shorthand for mass deletion, or 2. separate role definitions for deletion
+            if(req.body.roles){
+                dtouUtils.getRolesToDtou(req.body.roles).then(function(got) {
+                    return dtouUtils.deleteRoles(got);
+                }).then(function(res) {
+                    console.info('--- role:identifiers & role:resources mapping deleted', res);
+                    return resp.send(res);
+                });
+            } else {
+                dtouUtils.deleteRoles(req.body).then(function(res){
+                    console.info('--- role:identifiers & role:resources mapping deleted', res);
+                    return resp.send(res);
+                });
+            }
+            // return next(new BadRequestException('DELETE /dtou/roles missing field: roles', {}));
         });
 
     return _dtouRouter;
