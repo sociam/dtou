@@ -53,6 +53,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             $('#dtou-button-home').on('click', function() {
                 port.postMessage({cmd:'get_id', loc:'#tweet-box-home-timeline'});
             });
+
             $('.tweet-box-content .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-popup', img));
             $('#dtou-button-popup').on('click', function() {
                 port.postMessage({cmd:'get_id', loc:'*[aria-labelledby="Tweetstorm-tweet-box-0-label Tweetstorm-tweet-box-0-text-label"]'});
@@ -94,6 +95,16 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 port.postMessage(_.extend({cb_nonce:nonce}, data));
             });
         },
+        secondLayerHtml = (definitions, secrets) => {
+            var substituted = '';
+            if(secrets.substituteHtml){
+                substituted += '<div>'+secrets.substituteHtml+'</div>';
+            }
+            if (definitions.disclaimerHtml){
+                substituted += '<br/><div><small><i>Disclaimer: '+definitions.disclaimerHtml+'</i></small></div>'
+            }
+            return substituted;
+        },
         augment = (tweet, data, cb) => {
             askBg({cmd:'get_model', id:data.id}).then((response) => {
                 // - TODO put this whole blob into dtou_handlers/twitter.js
@@ -108,7 +119,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     window._tweet = tweet;
                     // window._response = response;
                     window.things = things;
-                    $(things).html(response.data.dtou.secrets.substituteHtml);
+                    let substituted = secondLayerHtml(response.data.dtou.definitions, response.data.dtou.secrets);
+                    $(things).html(substituted);
                     $(tweet).find('.js-tweet-text-container').append(things);
                     // $($(tweet).find('.js-tweet-text-container p')[0]).hide();
                 }
@@ -134,9 +146,9 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
                     $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
                     // - add menu for recognising peer dtou user
-                    let recognise = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">Recognise DToU User</button></li>');
+                    let recognise = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">Recognise User as a Peer</button></li>');
                     // - add menu for accepting dtous
-                    let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View Peer DToUs</button></li>');
+                    let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View and Accept Peer DToUs</button></li>');
                     if (!peerData.data || peerData.data.error) {
                         [btn, recognise].map((item) => {
                             item.find('button')
@@ -179,7 +191,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         window._tweet = tweet;
                         // window._response = peerData;
                         window.things = things;
-                        $(things).html(peerData.data.dtou.secrets.substituteHtml);
+                        let substituted = secondLayerHtml(peerData.data.dtou.definitions, peerData.data.dtou.secrets);
+                        $(things).html(substituted);
                         $(tweet).find('.js-tweet-text-container').append(things);
                     }
                 }
@@ -211,7 +224,6 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 // console.info('updating dom');
                 // domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
                 if (profile === undefined) profile = extract_profile();
-                console.log('profile', profile);
 
                 // visible tweets ...
                 // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));

@@ -134,14 +134,14 @@
                                 <h4>Default Settings</h4>
                                 <table class="table">
                                     <tr>
-                                        <td style="width: 30%">Restrict access for peers without roles</td>
+                                        <td style="width: 30%">Restrict access for unrecognised peers without roles</td>
                                         <td style="width: 5%"><label class="switch"><input type="checkbox" ng-model="ui.defaultToNone"><div class="slider round"></div></label></td>
-                                        <td class='value' style="width: 65%" ng-bind="ui.defaultToNone ? 'Anyone without roles cannot access content' : 'Anyone without roles can access your content if they agree to your custom DToU' "></td>
+                                        <td class='value' style="width: 65%" ng-bind="ui.defaultToNone ? 'Unrecognised peers cannot access content' : 'Unrecognised peers can access your content if they agree to your custom DToU' "></td>
                                     </tr>
                                     <tr>
                                         <td>Set DToU for peers with roles</td>
                                         <td><label class="switch"><input type="checkbox" ng-model="ui.useRoleDtou"><div class="slider round"></div></label></td>
-                                        <td class='value' ng-bind="ui.useRoleDtou ? 'Content is subject to role DToU' : 'Content is subject to custom DToU' "></td>
+                                        <td class='value' ng-bind="ui.useRoleDtou ? 'User must agree to role DToU to see content' : 'User must agree to custom DToU to see content' "></td>
                                     </tr>
                                 </table>
                             </div>

@@ -58,7 +58,7 @@ app.controller('permissions', function($scope, utils, $location, $timeout) {
                 });
                 assignedList.on('change', () => {
                     $timeout(() => {
-                        let newIds = assignedList.val();
+                        let newIds = assignedList.val() ? assignedList.val() : [];
                         ui.chosen = ui.acls.filter((acl) => {return newIds.includes(acl._id)});
                         ui.unchosen = ui.acls.filter((acl) => {return !newIds.includes(acl._id)});
                         loadResourceUsers();

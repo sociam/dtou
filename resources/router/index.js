@@ -93,7 +93,7 @@ var dtouRouter = function(thUtils) {
     // - uses same data model as stored in pdb for convenience
     _dtouRouter.route('/ask_peer')
         .post(function(req, resp, next) {
-            console.log('--> post /ask_peer', req.body);
+            console.log('--> post /dtou/ask_peer', req.body);
             // - TODO make this more generic for media besides thtp
             if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/ask_peer missing field: endpoint", {}));
             // _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {

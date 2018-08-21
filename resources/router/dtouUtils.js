@@ -24,7 +24,6 @@ function DtouException(msg, wrapped, status) {
 // - acls (they're actually more of an rbac in this instance) for 3 mappings:
 //   roles --> dtous, handled with simple custom logic
 //   roles --> resources (items/<id>; simple r access) and roles --> users (thjs hn), handled with node_acl_pouchdb
-// - for now we're not using anything additional to read permissions
 var getAllRoleNames = function() {
         return storageUtils.getAll(roledbName).then(function(roles) {
             return roles.map(function(role) {return role._id});
@@ -92,10 +91,14 @@ var getAllRoleNames = function() {
                 toAdd = resources.filter(function(resource){return !existing || !existing.includes(resource)}),
                 toRemove = existing ? existing.filter(function(resource) {return !resources.includes(resource)}) : [];
             return Promise.all(roles.map(function(role) {
-                return acl.allow(role, toAdd, defaultPerms).then(function(){
-                    return acl.removeAllow(role, toRemove, defaultPerms);
-                });
-            })).then(function(out) {
+                console.info('-- adding resources', role, toAdd, [role]);
+                return toAdd.length > 0 ? acl.allow(role, toAdd, [role]) : [];
+            })).then(function(){
+                return Promise.all(roles.map(function(role) {
+                    console.info('-- removing resources', role, toRemove, [role]);
+                    return toRemove.length > 0 ? acl.removeAllow(role, toRemove, [role]) : [];
+                }));
+            }).then(function(out) {
                 return out;
             });
         });
@@ -120,12 +123,17 @@ var getAllRoleNames = function() {
                         //   is no longer assigned to its old identifier :. remove the assignment
                         return newRoles.includes(oldRole) && !newIdentifiers.includes(oldIdentifier);
                     });
-                    console.info('removing', oldIdentifier, toRemove);
                     return acl.removeUserRoles(oldIdentifier, toRemove);
                 }));
             }).then(function(out) {
                 return out;
             });
+        });
+    },
+    getUserResourcePermissions = function(id, resources){
+        return storageUtils.db(acldbName).then(function(db) {
+            let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
+            return acl.allowedPermissions(id, resources);
         });
     },
     deleteRoles = function(roleDocs) {
@@ -151,6 +159,27 @@ var getAllRoleNames = function() {
             return {error: e.message};
         });
     },
+    // - helper function for resolving roles by folding them against the default dtou
+    _resolveRoles = function(content, roleNames){
+        var empty = !roleNames || roleNames.length == 0;
+        if(!content.dtou.definitions.defaultToNone && empty){
+            return Promise.resolve({accept:true, id:content._id, dtou:content.dtou, db:defaultdbName});
+        } else if (content.dtou.definitions.defaultToNone && empty){
+            return Promise.resolve({accept:false, id:content._id, dtou:content.dtou, db:defaultdbName});
+        } else if (!content.dtou.definitions.useRoleDtou) {
+            return Promise.resolve({accept:true, id:content._id, dtou:content.dtou, db:defaultdbName});
+        } else if (roleNames.length == 1){
+            console.info('--- role permissions found', roleNames[0]);
+            return getRolesToDtou(roleNames).then(function(res){
+                return {accept:true, id:roleNames[0], dtou:res[0].dtou, db:roledbName};
+            });
+        } else {
+            // return {accept:true, }
+            // return accept, resolve(roles).id, resolve(roles).dtou, db:roledbName
+            console.warn('--- multi-role resolution not supported yet');
+            return Promise.resolve({accept:true, id:content._id, dtou:content.dtou, db:defaultdbName});
+        }
+    },
     // - handlers used to process DTOUs on incoming/outgoing communication
     // - uses a pipe-filter model
     handlers = {
@@ -175,94 +204,106 @@ var getAllRoleNames = function() {
             return Promise.resolve(_.merge(slim, {cmd: commands.process_dtous}));
         }
     },
-    _inboundCheckDtou = function(blob) {
+    _inboundCheckDtou = function(myContent, dtouIdentifier, theirPermissions) {
         // - B processes incoming request for dtou definitions from A, send them out
-        if(blob.type === dtouTypes.tweet) {
-            if(!blob.id) throw new DtouException('blob missing field: id');
-            return storageUtils.get(defaultdbName, blob.id).then(function(got){
-                if(got.dtou) got.dtou.secrets = {};
-                return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
-            }).catch(function(e) {
-                console.error(e);
-                return {error: e.message};
-            });
+        if(myContent.type === dtouTypes.tweet) {
+            var resolved = _resolveRoles(myContent, theirPermissions[myContent._id]),
+                dtou = resolved.dtou,
+                contentMerged = _.merge(myContent, dtou);
+            console.info('--> RESOLVED CHECKING DTOU', contentMerged);
+            if(contentMerged.dtou) contentMerged.dtou.secrets = {};
+            return Promise.resolve(_.pick(contentMerged, ['_id', '_rev', 'dtou', 'cmd']));
         }
     },
-    _inboundProcessDtou = function(blob, dtou_identifier) {
-        // - B releases data
-        // - TODO all DTOU logic will go here, e.g. future project: DTOU spec lang
-        if(blob.type === dtouTypes.tweet) {
-            if(!blob.id) throw new DtouException('blob missing field: id');
-            return storageUtils.get(defaultdbName, blob.id).then(function(got){
-                var myDtou = got.dtou,
-                    theirAgreement = blob.agreement,
-                    consumer = blob.agreement.consumer,
-                    newSecrets = _.cloneDeep(myDtou.secrets);
-                    myDtou.secrets = {};
-                if(!myDtou || !theirAgreement.definitions.substitute){
-                    // - if reader hasn't agreed to my dtous, send out the empty secrets
-                    return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
-                } else {
-                    // - otherwise, modify according to my secrets
-                    if (newSecrets.substituteHtml){
-                        myDtou.secrets.substituteHtml = newSecrets.substituteHtml;
-                    }
-                    // - if pingback and delete, check if incoming request for data consumption reaches limit
-                    var c = _.get(newSecrets, ['pingbackData', dtou_identifier, 'count'], 0),
-                        d = _.get(myDtou, ['definitions', 'delete'], 0),
-                        limitReached = myDtou.definitions.pingback && myDtou.definitions.delete && c > d;
-                    if(limitReached){
-                        myDtou.secrets.substituteHtml = '<i>Read-limit reached; content removed.</i>';
-                    }
-                    // - otherwise, modify my secrets
-                    else if (myDtou.definitions.pingback){
-                        var now = new Date();
-                        // - this whole blob is to 1. init the previous time if it doesn't exist;
-                        //   2. update values if readtime*minutes has passed since then
-                        _.update(newSecrets, ['pingbackData', dtou_identifier, 'stamp'], function(prev){
-                            if(!prev) return now;
-                            if(myDtou.definitions.readtime){
-                                var stamp = new Date(prev);
-                                stamp.setMinutes(stamp.getMinutes() + myDtou.definitions.readtime);
-                                if(stamp.getTime() < now.getTime()) {
-                                    _.set(newSecrets, ['pingbackData', dtou_identifier, 'count'], c+1);
-                                    return now;
-                                }
-                            }
-                            return prev;
-                        });
-                        _.set(newSecrets, ['pingbackData', dtou_identifier, 'author'], _.get(consumer, ['twitter', 'author']));
-                        _.set(newSecrets, ['pingbackData', dtou_identifier, 'authorid'], _.get(consumer, ['twitter', 'authorid']));
-                    }
-                    // - ensure that we've updated our own secrets first before releasing outgoing data
-                    return storageUtils.update(defaultdbName, blob.id, function(item){
-                        item.dtou.secrets = newSecrets;
-                        return item;
-                    }).then(function(){
-                        console.info('--> [DTOU] updated dtou for', blob.id, newSecrets);
-                        return _.pick(got, ['_id', '_rev', 'dtou', 'cmd']);
-                    });
+    _inboundProcessDtou = function(theirContent, myContent, dtouIdentifier, theirPermissions) {
+        // - B releases data, subject to A's agreement and B's dtou
+        // - TODO refine DTOU logic, e.g. future project: DTOU spec lang
+        return _resolveRoles(myContent, theirPermissions[myContent._id]).then(function(resolved) {
+            // - accept is false iff dtouIdentifier doesn't have a role and the user specified
+            //   unrecognised peers to be automatically rejected
+            var accept = resolved.accept,
+            // - key for wherever the dtou is stored (could be content-custom, could be role-specific)
+            dtouLocation = resolved.id,
+            // - where we can find aforementioned dtou
+            dtouDb = resolved.db,
+            // - actual dtou content
+            outboundDtou = resolved.dtou,
+            // - their acceptance of my dtou
+            theirAgreement = theirContent.agreement,
+            // - convenience var for their self-identification as data consumer
+            consumer = theirContent.agreement.consumer,
+            // - updated secrets i'll write into my dtou
+            myNewSecrets = _.cloneDeep(outboundDtou.secrets);
+            // - erase outbound dtou's secrets
+            outboundDtou.secrets = {};
+            if(!accept || !outboundDtou || !theirAgreement.definitions.substitute){
+                // - if reader hasn't agreed to my dtous, send out the empty secrets
+                return _.pick(_.merge(myContent, outboundDtou), ['_id', '_rev', 'dtou', 'cmd']);
+            } else {
+                // - otherwise, modify according to my secrets, e.g. insert hidden content
+                if (myNewSecrets.substituteHtml){
+                    outboundDtou.secrets.substituteHtml = myNewSecrets.substituteHtml;
                 }
-            }).catch(function(e) {
-                console.error(e);
-                return {error: e.message};
-            });
-        }
+                // - if pingback and delete, check if incoming request for data consumption reaches limit
+                var c = _.get(myNewSecrets, ['pingbackData', dtouIdentifier, 'count'], 0),
+                    d = _.get(outboundDtou, ['definitions', 'delete'], 0),
+                    limitReached = outboundDtou.definitions.pingback && outboundDtou.definitions.delete && c > d;
+                if(limitReached){
+                    outboundDtou.secrets.substituteHtml = '<i>Read-limit reached; content removed.</i>';
+                }
+                // - otherwise, modify by incrementing view count
+                else if (outboundDtou.definitions.pingback){
+                    var now = new Date();
+                    // - this whole blob is to 1. init the previous time if it doesn't exist;
+                    //   2. update values if readtime*minutes has passed since then
+                    _.update(myNewSecrets, ['pingbackData', dtouIdentifier, 'stamp'], function(prev){
+                        if(!prev) return now;
+                        if(outboundDtou.definitions.readtime){
+                            var stamp = new Date(prev);
+                            stamp.setMinutes(stamp.getMinutes() + outboundDtou.definitions.readtime);
+                            if(stamp.getTime() < now.getTime()) {
+                                _.set(myNewSecrets, ['pingbackData', dtouIdentifier, 'count'], c+1);
+                                return now;
+                            }
+                        }
+                        return prev;
+                    });
+                    // - 3. set the details of the data consumer
+                    _.set(myNewSecrets, ['pingbackData', dtouIdentifier, 'author'], _.get(consumer, ['twitter', 'author']));
+                    _.set(myNewSecrets, ['pingbackData', dtouIdentifier, 'authorid'], _.get(consumer, ['twitter', 'authorid']));
+                }
+                // - ensure that we've updated our own secrets first before releasing outgoing data
+                return storageUtils.update(dtouDb, dtouLocation, function(item){
+                    item.dtou.secrets = myNewSecrets;
+                    return item;
+                }).then(function(){
+                    console.info('--> [DTOU] updated dtou for', theirContent.id, myNewSecrets);
+                    return _.pick(_.merge(myContent, outboundDtou), ['_id', '_rev', 'dtou', 'cmd']);
+                });
+            }
+        });
     },
-    inboundController = function(blob, dtou_identifier) {
-        // - redirects all inbound messages to the right places
-        try {
+    inboundController = function(blob, dtouIdentifier) {
+        if(!blob.id) throw new DtouException('blob missing field: id');
+        return Promise.all([
+            // - get permissions and the data for the requested content
+            getUserResourcePermissions(dtouIdentifier, blob.id),
+            storageUtils.get(defaultdbName, blob.id)
+        ]).then(function(out) {
+            var theirPermissions = out[0],
+                myContent = out[1];
+            // - redirects all inbound messages to the right places
             if (blob.cmd === commands.get_defs) {
-                return _inboundCheckDtou(blob);
+                return _inboundCheckDtou(myContent, dtouIdentifier, theirPermissions);
             } else if (blob.cmd === commands.process_dtous) {
-                return _inboundProcessDtou(blob, dtou_identifier);
+                return _inboundProcessDtou(blob, myContent, dtouIdentifier, theirPermissions);
             } else {
                 throw new DtouException('blob has weird cmd block', blob);
             }
-        } catch(e) {
-            console.error('--> [DTOU] inbound dtou controller error: ', e);
-            return Promise.resolve({error: e});
-        }
+        }).catch(function(e) {
+            console.error(e);
+            return {error: e.message};
+        });
     };
 
 module.exports = {

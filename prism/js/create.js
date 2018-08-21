@@ -48,7 +48,7 @@ angular.module('dtouprism')
                     });
                     assignedList.on('change', () => {
                         $timeout(() => {
-                            let newIds = assignedList.val();
+                            let newIds = assignedList.val() ? assignedList.val() : [];
                             ui.chosen = ui.acls.filter((acl) => {return newIds.includes(acl._id)});
                             ui.unchosen = ui.acls.filter((acl) => {return !newIds.includes(acl._id)});
                             loadResourceUsers();
@@ -126,11 +126,32 @@ angular.module('dtouprism')
                 $scope.selected.save().then(() => {
                     console.log(`model updated ${m.id}`, dtou);
                     $timeout(function() {
-                        window.close();
+                        window.location.reload();
                     }, 200);
                 });
             }
         };
+
+        $scope.assign = () => {
+            if($scope.ui && ui.chosen) {
+                var resourceAdded = ui.chosen.map((role) => {
+                    role.resources = Array.from(new Set(role.resources).add(oid));
+                    return role;
+                });
+                var resourceRemoved = ui.unchosen.map((role) => {
+                    role.resources = role.resources.filter((id) => {return id !== oid});
+                    return role;
+                });
+                bg.setAcls(resourceAdded).then(() => {
+                    return bg.setAcls(resourceRemoved);
+                }).then(() => {
+                    $timeout(function() {
+                        window.location.reload();
+                    }, 200);
+                });
+            }
+        };
+
         window._s = $scope;
 
     });

@@ -47,15 +47,14 @@ var _TelehashUtil = function(reqHandler) {
     var _id = function () {
         return new Promise(function (resolve, reject) {
             if(fs.existsSync(cfgFile) && cacheFlag) {
-                try{
+                try {
                     var loaded = JSON.parse(fs.readFileSync(cfgFile));
                     console.log('--> cfg loaded (hashname):', loaded.hashname);
                     resolve(loaded);
-                } catch(e){
+                } catch (e) {
                     reject(new TelehashException("cfg loading failed", e));
                 }
-            }
-            else {
+            } else {
                 telehash.generate(function (e, generated) {
                     if (e) reject(new TelehashException("router endpoint generation failed", e));
                     console.log('--> id generated (hashname):', generated.hashname);
