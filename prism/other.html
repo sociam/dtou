@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet/less" href="css/create.less">
+    <link rel="stylesheet/less" href="lib/components-font-awesome/less/fontawesome.less">
+    <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.css">
+
+    <script type="text/javascript" src="lib/less/dist/less.js"></script>
+    <script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
+    <script type="text/javascript" src="lib/backbone/backbone.js"></script>
+    <script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
+    <script type="text/javascript" src="lib/angular/angular.js"></script>
+    <script type="text/javascript" src="lib/bootstrap/js/bootstrap.js"></script>
+
+    <script type="text/javascript" src="js/dtou.js"></script>
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/storage2.js"></script>
+    <script type="text/javascript" src="js/storage2-sync.js"></script>
+    <script type="text/javascript" src="js/remote.js"></script>
+    <script type="text/javascript" src="js/explore.js"></script>
+    <script type="text/javascript" src="js/other.js"></script>
+    <title></title>
+</head>
+<body ng-app="dtouprism" ng-controller="other">
+
+<div class="jumbotron center-block text-center">
+    <img src="img/prism.png" id="logo">
+    <h1> Data Terms of Use (DToU) </h1>
+</div>
+
+<div class="container col-8 text-center" ng-show="ui.loading">
+    <img src="img/loading.png" class="fa-spin">
+    <div class="small" ng-show="ui.loadingLong">Unusually long loading time... check your settings.</div>
+</div>
+
+<div class="container col-8 pb-5" ng-show="!ui.loading">
+    <div class="dtoucontrols m-2" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
+        <!-- <pre ng-bind="selected.id"></pre> -->
+        <h2> <div ng-bind="'Selected Tweet (Peer: @'+ui.author+')'"></div></h2>
+        <div class="card" ng-show="selected">
+            <div class="card-body" ng-bind-html="::selectedHtml"></div>
+        </div>
+        <div ng-show="!selected">
+            No Entity Selected
+        </div>
+    </div>
+
+    <div class="dtoucontrols m-2">
+        <h2> Peer DToU Declarations </h2>
+        <!--<table>-->
+        <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
+        <!--</table>-->
+        <div class="small" ng-bind="'Acting as: @'+ui.consumer.twitter.author+' ('+ui.consumer.twitter.authorid+')'" ></div>
+        <table class="table">
+            <tr ng-show="ui.peer">
+                <th>Terms</th>
+                <th>My Agreements</th>
+                <th>Details</th>
+            </tr>
+            <tr ng-show="!ui.peer">
+                <td> Peer Defined no DToUs </td>
+            </tr>
+            <tr ng-show="ui.peer.substitute">
+                <td class="">Hidden Content</td>
+                <td class=""><input type="checkbox" ng-model="ui.substitute"></td>
+                <td class='value '>
+                    <div type="text" ng-show="ui.substitute" ng-bind="ui.substituteHtml? ui.substituteHtml:'show and read content hidden by peer after refresh'"></div>
+                    <div type="text" ng-show="!ui.substitute" ng-bind="'peer has embedded hidden content; enable to show'"></div>
+                </td>
+            </tr>
+            <tr ng-show="ui.substitute && ui.peer.pingback">
+                <td>Read-Receipts</td>
+                <td></td>
+                <td class='value ' ng-bind="'data owner can see the number of your content reads'"></td>
+            </tr>
+            <tr ng-show="ui.substitute && ui.peer.readtime">
+                <td>Read Time</td>
+                <td></td>
+                <td class='value' ng-bind="'you have '+ui.peer.readtime+' minutes per read'"></td>
+            </tr>
+            <tr ng-show="ui.substitute && ui.peer.delete">
+                <td>Delete-on-Read</td>
+                <td></td>
+                <td class='value' ng-bind="'content will be readable for/deleted after '+ui.peer.delete+' reads'"></td>
+            </tr>
+            <tr ng-show="ui.peer.sign">
+                <td class="">Decrypt</td>
+                <td><input type="checkbox" ng-bind="ui.sign"></td>
+                <td class='value' ng-bind="ui.sign ? 'decrypt cryptographically signed content' : 'not signed'"></td>
+            </tr>
+        </table>
+        <button ng-show="ui.peer" class="btn" ng-click="save()">Agree to Peer DToUs</button>
+    </div>
+</div>
+</body>
+</html>

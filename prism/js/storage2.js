@@ -7,7 +7,7 @@
 	angular.module('dtouprism')
 		.factory('storage', function (remote, utils, $log) {
 
-			var DEBUG = false,
+			var DEBUG = utils.debug(),
 				log = $log.instance('storage', 'maroon'),
 				PDB_OPTIONS = {
 					// adapter:'websql', 
@@ -314,7 +314,6 @@
 					model:PouchModel,
 					initialize: function (models, options) {
 						var this_ = this;
-						console.log('options ', options)
 						assert(options && options.name !== undefined, 'name must be specified');
 						this.name = options.name;
 						this.oneway = options.oneway;
@@ -669,8 +668,9 @@
 				isFetched = function (name) { return collection_fetched[name]; };
 
 			var getCollection = function (name, options) {
-				if (collection_cache[name] !== undefined) { return collection_cache[name]; }
-				var c = new PouchCollection([], _.extend({ name: name }, options)),
+				if (collection_cache[name] !== undefined && !_.get(options, ['force'])) {return collection_cache[name]; }
+				if (collection_cache[name]) {delete collection_cache[name]};
+				var c = new PouchCollection([], _.extend({ name: name }, _.omit(options, ['force']))),
 					d = collection_cache[name] = new Promise(function (resolve, reject) {
 						c.fetch().then(function () {
 							// register the collection with sync
@@ -723,7 +723,7 @@
 				// getLocalStuff: function () { return getCollection("Stuff");  },
 				getNotifications: function () { return getCollection("Notifications");  },
 				getUsageLog: function () { return getCollection("UsageLog", {oneway:true});  },
-				getCollection : function (name) { return getCollection(name); },
+				getCollection : getCollection,
 				// used by storage-remote, our "friend"
 				PouchModel:PouchModel,
 				m2d:m2d, // also used for serialising/deserialising models to server

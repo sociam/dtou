@@ -1,19 +1,20 @@
 <!DOCTYPE html>
 <html>
 	<head>
-		<meta charset="utf-8" />
-		<link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/bootstrap.css">
+		<meta charset="utf-8"/>
+        <link rel="stylesheet/less" href="css/create.less">
+        <link rel="stylesheet/less" href="lib/components-font-awesome/less/fontawesome.less">
+        <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="css/toggle.css">
 
-		<link rel="stylesheet/less" href="css/create.less">
-		<link rel="stylesheet" type="text/css" href="css/toggle.css">
-
-		<script type="text/javascript" src="lib/less/dist/less.js"></script>		
+        <script type="text/javascript" src="lib/less/dist/less.js"></script>
 		<script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
-		<script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>	
+        <script type="text/javascript" src="lib/bootstrap/dist/js/bootstrap.min.js"></script>
+
+        <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
 		<script type="text/javascript" src="lib/backbone/backbone.js"></script>					
 		<script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
 		<script type="text/javascript" src="lib/angular/angular.js"></script>
-
 		<script type="text/javascript" src="js/dtou.js"></script>		
 		<script type="text/javascript" src="js/utils.js"></script>		
 		<script type="text/javascript" src="js/storage2.js"></script>		
@@ -21,27 +22,161 @@
 		<script type="text/javascript" src="js/remote.js"></script>		
 		<script type="text/javascript" src="js/explore.js"></script>
 		<script type="text/javascript" src="js/create.js"></script>		
-		<title></title>
 	</head>
 	<body ng-app="dtouprism" ng-controller="create">
-		<img src="img/prism.png" id="logo"> 
-		<h1> data terms of use </h1>
 
-		<h2> create a new dtou declaration </h2>
-		<div class="dtoucontrols">
+        <div class="jumbotron center-block text-center">
+            <img src="img/prism.png" id="logo">
+            <h1> Data Terms of Use (DToU) </h1>
+        </div>
+        <div class="container col-8 text-center" ng-show="ui.loading">
+            <img src="img/loading.png" class="fa-spin">
+            <div class="small" ng-show="ui.loadingLong">Unusually long loading time... check your settings.</div>
+        </div>
+        <div class="container col-8 pb-5" ng-show="!ui.loading">
+            <!--display selected content/resource-->
+            <div class="dtoucontrols m-2" ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" >
+                <!-- <pre ng-bind="selected.id"></pre> -->
+                <h2> <div ng-bind="'Selected Tweet (Mine: @'+ui.author+')'"></div></h2>
+                <div class="card" ng-show="selected">
+                    <div class="card-body" ng-bind-html="::selectedHtml"></div>
+                </div>
+                <div ng-show="!selected">
+                    No Entity Selected
+                </div>
+            </div>
+            <!--show stats-->
+            <div class="dtoucontrols m-2">
+                <h2>DToU Stats</h2>
+                <!--TODO: make this more hipster with masonry-->
+                <div class="card-columns">
+                    <div class="card border-secondary mb-3" ng-repeat="(id, data) in ui.pingbackData">
+                        <div class="card-header bg-light text-primary font-weight-bold lead"> Peer: {{data.author}}</div>
+                        <div class="card-body bg-light text-info">
+                            <p class="card-text">DToU Identifier: <b>{{id}}</b></p>
+                            <p class="card-text" ng-show="data.author">
+                                Viewer ID: <b>{{data.authorid}}</b>.
+                            </p>
+                            <p class="card-text" ng-show="data.count">
+                                Your content was viewed <b>{{data.count}}</b> times.
+                            </p>
+                        </div>
+                        <div class="card-footer text-info small">Last viewed at <b>{{data.stamp}}</b>.</div>
+                    </div>
+                </div>
+            </div>
+            <!--dtou menu-->
+            <div class="dtoucontrols m-2">
 
-			<div ng-show="selected.attributes.type==='tweet'" ng-class="{tweet:selected.attributes.type==='tweet'}" ng-show="selected">
-				<!-- <pre ng-bind="selected.id"></pre> -->
-				<div ng-bind-html="::selectedHtml"></div>
-			</div>
-			<table>
-				<tr><td>Substitute Content</td><td><input type="checkbox" ng-model="ui.substitute"></td><td class='value'><input type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td></tr>
-				<tr><td>Cryptographically sign</td><td><input type="checkbox" ng-bind="ui.sign"></td><td class='value' ng-bind="ui.sign ? 'sign' : 'not signed'"></td></tr>
-			</table>
-			<button class="btn" ng-click="save()">Save</button>
-		</div>
-		<div class="" ng-show="!selected">
-			No object selected
-		</div>
+                <ul class="nav nav-tabs nav-justified" data-tabs="tabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="create" data-toggle="tab" href="#create-dtou">Create Custom DToU</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="assign" data-toggle="tab" href="#assign-dtou">Manage Role-Based Access</a>
+                    </li>
+                </ul>
+                <div class="tab-content col-12">
+                    <!--Section for creating a custom DToU-->
+                    <div class="tab-pane fade show active" id="create-dtou">
+
+                        <h2> My DToU Declarations </h2>
+                        <!--<table>-->
+                        <!--<tr><td>DTOU Router</td><td><input type="text"></td><td>DTOU Container</td><td><input type="text"></td></tr>-->
+                        <!--</table>-->
+                        <table class="table">
+                            <thead>
+                            <tr>
+                                <th>Terms</th>
+                                <th>My Settings</th>
+                                <th>Details</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Content Disclaimer</td>
+                                <td><input type="checkbox" ng-model="ui.disclaimer"></td>
+                                <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.disclaimer" ng-model="ui.disclaimerHtml"></td>
+                            </tr>
+                            <tr>
+                                <td>Hidden Content</td>
+                                <td><input type="checkbox" ng-model="ui.substitute"></td>
+                                <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.substitute" ng-model="ui.substituteHtml"></td>
+                            </tr>
+                            <tr>
+                                <td>Read-Receipts</td>
+                                <td><input type="checkbox" ng-model="ui.pingback"></td>
+                                <td  class='value' ng-bind="ui.pingback ? 'enabled: readers will be logged' : 'disabled'"></td>
+                            </tr>
+                            <tr ng-show="ui.pingback">
+                                <td>Read Time</td>
+                                <td><input class="slim-input" type="number" ng-model="ui.readtime" min="0" ></td>
+                                <td class='value' ng-bind="'minutes allowed for each read (requires read-receipts)'"></td>
+                            </tr>
+                            <tr ng-show="ui.pingback">
+                                <td>Delete-on-Read #</td>
+                                <td><input class="slim-input" type="number" ng-model="ui.delete" min="0"></td>
+                                <td class='value' ng-bind="ui.delete ? 'content deleted after '+ui.delete+' reads (requires read-receipts)' : 'disabled'"></td>
+                            </tr>
+                            <tr>
+                                <td>Cryptographically Sign</td>
+                                <td><input type="checkbox" ng-bind="ui.sign"></td>
+                                <td class='value' ng-bind="ui.sign ? 'signed' : 'not signed'"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <button class="btn" ng-click="save()">Save</button>
+                    </div>
+                    <!--Section for assigning roles-->
+                    <div class="tab-pane fade" id="assign-dtou">
+                        <div class="row pt-1">
+                            <div class="col-12">
+                                <h4>Default Settings</h4>
+                                <table class="table">
+                                    <tr>
+                                        <td style="width: 30%">Restrict access for unrecognised peers without roles</td>
+                                        <td style="width: 5%"><label class="switch"><input type="checkbox" ng-model="ui.defaultToNone"><div class="slider round"></div></label></td>
+                                        <td class='value' style="width: 65%" ng-bind="ui.defaultToNone ? 'Unrecognised peers cannot access content' : 'Unrecognised peers can access your content if they agree to your custom DToU' "></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Set DToU for peers with roles</td>
+                                        <td><label class="switch"><input type="checkbox" ng-model="ui.useRoleDtou"><div class="slider round"></div></label></td>
+                                        <td class='value' ng-bind="ui.useRoleDtou ? 'User must agree to role DToU to see content' : 'User must agree to custom DToU to see content' "></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="row pt-1">
+                            <div class="col-3">
+                                <h4>Assigned Roles</h4>
+                                <select class="custom-select" id="assign-role-list" multiple></select>
+                                <button class="btn mt-1 col-12" ng-click="assign()">Update</button>
+                            </div>
+                            <div class="col-9">
+                                <h4>Summary for Roles</h4>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="card">
+                                            <div class="card-header">Accessible Resources</div>
+                                            <div class="card-body">
+                                                <ul ng-repeat="resource in ui.resources"><li>{{resource}}</li></ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="card">
+                                            <div class="card-header">Peers</div>
+                                            <div class="card-body">
+                                                <ul ng-repeat="user in ui.identifiers"><li>{{user}}</li></ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 	</body>
 </html>

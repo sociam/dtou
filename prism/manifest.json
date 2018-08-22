@@ -12,7 +12,8 @@
 
   "permissions": [
     "activeTab",
-    "https://ajax.googleapis.com/"
+    "https://ajax.googleapis.com/",
+    "storage"
   ],
 
   "content_scripts": [
@@ -23,7 +24,10 @@
         "lib/jquery/dist/jquery.js",  
         "lib/lodash/dist/lodash.js",
         "lib/bluebird/js/browser/bluebird.min.js",
-        "js/twitter-cs.js"
+        "lib/angular/angular.min.js",
+        "js/dtou.js",
+        "js/dtou_handlers/twitter.js",
+        "js/bindings/twitter-cs.js"
       ]
     }
   ],
@@ -31,5 +35,7 @@
   "background": {
     "page": "bg.html", 
     "persistent": true
-  }
+  },
+
+  "web_accessible_resources": ["img/prism.png", "lib/bootstrap/*", "lib/components-font-awesome"]
 }

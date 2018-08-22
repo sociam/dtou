@@ -1,0 +1,48 @@
+# - main image definition for Node.js + telehash DTOU application
+# - designed to built from project root
+FROM ubuntu:14.04
+MAINTAINER lmok
+
+#
+# - base layer
+#
+ENV HOME /opt
+WORKDIR /opt
+
+RUN apt-get update -qq
+RUN apt-get install -y -qq git curl wget
+
+#
+# - install npm
+#
+RUN curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+RUN sudo apt-get install -y -qq nodejs=0.10.* npm build-essential libtool m4 automake
+RUN ln -s /usr/bin/nodejs /usr/bin/node
+
+#
+# - other stuff, cache telehash layer so we dont have to reinstall per app diff
+#
+RUN npm config set strict-ssl=false
+
+#
+# - install telehash
+#
+RUN npm install git+https://github.com/telehash/telehash-js.git#master
+
+#
+# - pdb and thjs require different node versions
+#   respectively because of ecc & ursa, ~0.10.x, and leveldown, >4.x
+#
+RUN sudo npm cache clean -f &&\
+    sudo npm install -g n &&\
+    sudo n stable
+RUN npm install --save express jsonfile body-parser concat-stream event-stream pouchdb pouchdb-upsert lodash
+# - also add node acl
+RUN npm install --save acl node_acl_pouchdb
+
+#
+# - add our app files into the ctr
+#
+COPY resources/router/* /opt/
+ENV DEBUG _
+CMD node index.js

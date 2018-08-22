@@ -1,0 +1,15 @@
+# - super straightforward container for running locust
+FROM python:2.7-jessie
+MAINTAINER lmok
+
+ENV HOME /opt
+WORKDIR /opt
+
+RUN apt-get update -qq
+
+RUN pip install locustio
+
+# - assume that locustfile is mounted (for easy editing)
+# - run this in project root, assuming this dockerfile has been built into lmok/locust
+# docker run -it --name locust --net=host -v `pwd`/resources/test/locustfile.py:/opt/locustfile.py lmok/locust bash
+# locust --host=http://192.168.99.100:80

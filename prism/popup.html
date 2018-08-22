@@ -12,7 +12,7 @@
 		<script type="text/javascript" src="js/popup.js"></script>		
 		<title></title>
 	</head>
-	<body ng-app="popup" ng-controller="main">
+	<body ng-app="dtouprism" ng-controller="popup">
 		<img src="img/prism.png" id="logo"> 
 		<h1> data terms of use </h1>
 
@@ -22,6 +22,15 @@
 			<tr><td>facebook</td><td><label class="switch"><input type="checkbox" ng-model="enabled.facebook"><div class="slider round"></div></label></td></tr>
 		</table>
 
+		<h2> settings: </h2>
+		<table>
+            <tr><td>Storage</td><td><input type="text" ng-model="dtou_storage"></td></tr>
+            <tr><td>DTOU Container</td><td><input type="text" ng-model="dtou_ctr"></td></tr>
+			<tr><td>DTOU Router</td><td><input type="text" ng-model="dtou_router"></td></tr>
+        </table>
+		<button class="button btn" ng-click="save()"> Save </button>
+
+		<h2> explore dtou: </h2>
 		<button class="button btn" ng-click="openKnapsack()"> Knapsack </button>
 	</body>
 </html>

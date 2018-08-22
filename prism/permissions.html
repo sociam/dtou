@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet/less" href="css/create.less">
+    <link rel="stylesheet/less" href="lib/components-font-awesome/less/fontawesome.less">
+    <link rel="stylesheet" type="text/css" href="lib/bootstrap/dist/css/bootstrap.css">
+
+    <script type="text/javascript" src="lib/less/dist/less.js"></script>
+    <script type="text/javascript" src="lib/jquery/dist/jquery.min.js"></script>
+    <script type="text/javascript" src="lib/lodash/dist/lodash.js"></script>
+    <script type="text/javascript" src="lib/backbone/backbone.js"></script>
+    <script type="text/javascript" src="lib/bluebird/js/browser/bluebird.js"></script>
+    <script type="text/javascript" src="lib/angular/angular.js"></script>
+    <script type="text/javascript" src="lib/bootstrap/js/bootstrap.js"></script>
+
+    <script type="text/javascript" src="js/dtou.js"></script>
+    <script type="text/javascript" src="js/utils.js"></script>
+    <script type="text/javascript" src="js/storage2.js"></script>
+    <script type="text/javascript" src="js/storage2-sync.js"></script>
+    <script type="text/javascript" src="js/remote.js"></script>
+    <script type="text/javascript" src="js/explore.js"></script>
+    <script type="text/javascript" src="js/permissions.js"></script>
+    <!--<script type="text/javascript" src="lib/bootstrap-select/js/bootstrap-select.js"></script>-->
+    <title></title>
+</head>
+<body ng-app="dtouprism" ng-controller="permissions">
+
+<div class="jumbotron center-block text-center">
+    <img src="img/prism.png" id="logo">
+    <h1> Data Terms of Use (DToU) </h1>
+</div>
+
+<div class="container col-8 text-center" ng-show="ui.loading">
+    <img src="img/loading.png" class="fa-spin">
+    <div class="small" ng-show="ui.loadingLong">Unusually long loading time... check your settings.</div>
+</div>
+
+<div class="container col-8 pb-5" ng-show="!ui.loading">
+    <div class="dtoucontrols m-2" >
+        <!-- <pre ng-bind="selected.id"></pre> -->
+        <h2 ng-show="ui.author && ui.type === 'tweet'" ng-bind="'Peer: @' + ui.author"></h2>
+        <div ng-show="ui.identifier" ng-bind="'Identifier: ' + ui.identifier"></div>
+    </div>
+
+    <div class="dtoucontrols m-2" ng-show="ui.identifier">
+        <ul class="nav nav-tabs nav-justified" data-tabs="tabs">
+            <li class="nav-item">
+                <a class="nav-link active" id="assign" data-toggle="tab" href="#assign-roles">Assign Roles to Peer</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" id="modify" data-toggle="tab" href="#modify-roles">View and Modify Role DToUs</a>
+            </li>
+        </ul>
+        <div class="tab-content col-12">
+            <!--Section for assigning roles-->
+            <div class="tab-pane fade show active" id="assign-roles">
+                <div class="row pt-1">
+                    <div class="col-3">
+                        <h4>Assigned Roles</h4>
+                        <select class="custom-select" id="assign-role-list" multiple></select>
+                        <button class="btn mt-1 col-12" ng-click="assign()">Update</button>
+                    </div>
+                    <div class="col-9">
+                        <h4>Summary for Roles</h4>
+                        <div class="row">
+                        <div class="col-6">
+                            <div class="card">
+                            <div class="card-header">Accessible Resources</div>
+                            <div class="card-body">
+                                <ul ng-repeat="resource in ui.resources"><li>{{resource}}</li></ul>
+                            </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card">
+                            <div class="card-header">Other Peers</div>
+                            <div class="card-body">
+                                <ul ng-repeat="user in ui.identifiers"><li>{{user}}</li></ul>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!--Section for modifying roles-->
+            <div class="tab-pane fade" id="modify-roles">
+                <div class="row pt-1">
+                    <div class="list-group col-2" id="acl-role-list">
+                        <!--<button class="list-group-item list-group-item-action active" ng-repeat="chosen in ui.chosen">{{chosen._id}}</button>-->
+                        <!--<button class="list-group-item list-group-item-action" ng-repeat="unchosen in ui.unchosen">{{unchosen._id}}</button>-->
+                    </div>
+                    <div class="col-10 card" id="acl-role-data">
+                        <div class="card-body">
+                        <table class="table small">
+                            <thead>
+                            <tr>
+                                <th>Terms</th>
+                                <th>My Settings</th>
+                                <th>Details</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr>
+                                <td>Content Disclaimer</td>
+                                <td><input type="checkbox" ng-model="ui.dtou.definitions.disclaimer"></td>
+                                <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.dtou.definitions.disclaimer" ng-model="ui.dtou.definitions.disclaimerHtml"></td>
+                            </tr>
+                            <tr>
+                                <td>Default Hidden Content</td>
+                                <td><input type="checkbox" ng-model="ui.dtou.definitions.substitute"></td>
+                                <td class='value'><input class="wide-input" type="text" ng-disabled="!ui.dtou.definitions.substitute" ng-model="ui.dtou.secrets.substituteHtml"></td>
+                            </tr>
+                            <tr>
+                                <td>Read-Receipts</td>
+                                <td><input type="checkbox" ng-model="ui.dtou.definitions.pingback"></td>
+                                <td  class='value' ng-bind="ui.dtou.definitions.pingback ? 'enabled: readers will be logged' : 'disabled'"></td>
+                            </tr>
+                            <tr ng-show="ui.dtou.definitions.pingback">
+                                <td>Read Time</td>
+                                <td><input class="slim-input" type="number" ng-model="ui.dtou.definitions.readtime" min="0" ></td>
+                                <td class='value' ng-bind="'minutes allowed for each read (requires read-receipts)'"></td>
+                            </tr>
+                            <tr ng-show="ui.dtou.definitions.pingback">
+                                <td>Delete-on-Read #</td>
+                                <td><input class="slim-input" type="number" ng-model="ui.dtou.definitions.delete" min="0"></td>
+                                <td class='value' ng-bind="ui.dtou.definitions.delete ? 'content deleted after '+ui.dtou.definitions.delete+' reads (requires read-receipts)' : 'disabled'"></td>
+                            </tr>
+                            <tr>
+                                <td>Cryptographically Sign</td>
+                                <td><input type="checkbox" ng-bind="ui.dtou.definitions.sign"></td>
+                                <td class='value' ng-bind="ui.dtou.definitions.sign ? 'signed' : 'not signed'"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                            <button class="btn col-2" ng-click="save()">Save</button>
+                            <button class="btn col-2 badge-danger" ng-show="" ng-click="delete()">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>
