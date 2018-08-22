@@ -1,7 +1,9 @@
 // - cfg is the router config; linkCache is json file of cached link
 // - if TH_CACHE in env is anything but true then ignore cfg and linkCache
-// - use `docker run -e "TH_CACHE=true"`
-// - might want to use docker build -t lmok/dtou-router:dev -f docker/RouterDockerfile . && docker run -it -v ~/.dtou:/mnt/dtou --network=host lmok/dtou-router:dev
+// - if TH_DISCOVER is true then thjs will look for other connections in the
+//   same network (udp multicast)
+// - TH_PRECONNECT can be the url of a publicly-available dtou router; this
+//   will make this instance connect to the router on start
 const telehash      = require('telehash'),
     fs              = require('fs'),
     http            = require('http'),
@@ -35,14 +37,14 @@ var _TelehashUtil = function(reqHandler) {
     // - link status cb
     var _linkStatus = function(status, link) {
         console.log('--> [link]', link.hashname, 'status:', (status) ? status : 'established');
-        // - i dont like this anymore than you...
+        // - close connections cleanly
         if(status === 'all pipes are down') {
             console.log('--> [link]', link.hashname, 'closing');
             link.close();
         }
     }
 
-    // - cache generated endpoint identifier & retrieve (activate with TH_CACHE=true)
+    // - cache generated endpoint identifier + private keys, then retrieve (TH_CACHE=true)
     // - if running the docker container, use `docker run -v ~/.dtou:/mnt/dtou` for example
     var _id = function () {
         return new Promise(function (resolve, reject) {
@@ -55,6 +57,7 @@ var _TelehashUtil = function(reqHandler) {
                     reject(new TelehashException("cfg loading failed", e));
                 }
             } else {
+                // - if not cached, generate hashname and private keys
                 telehash.generate(function (e, generated) {
                     if (e) reject(new TelehashException("router endpoint generation failed", e));
                     console.log('--> id generated (hashname):', generated.hashname);
@@ -81,12 +84,13 @@ var _TelehashUtil = function(reqHandler) {
         return {};
     }
 
-    // - use thtp to communicate json payloads
-    // - build proxies with a DTOU event handler (must take a JSON payload)
+    // - we use thtp to communicate json payloads
+    // - this method builds proxies with a DTOU event handler (takes JSON)
     var _thtpProxyGen = function(reqHandler) {
         try {
             return http.createServer(function(req, resp) {
                 if (req.method == 'POST') {
+                    // - uses concat-stream to simplify stream handling
                     req.pipe(cs(function(body) {
                         var payload = JSON.parse(body.toString());
                         console.info('<-- [thtp] incoming request', payload);
@@ -97,7 +101,6 @@ var _TelehashUtil = function(reqHandler) {
                                 resp.end(JSON.stringify(out));
                             });
                         } else {
-                            // resp.write(JSON.stringify(out))
                             resp.end(JSON.stringify({}));
                         }
                     }));
@@ -108,7 +111,7 @@ var _TelehashUtil = function(reqHandler) {
         }
     }
 
-    // - use stream extension to communicate json
+    // - experimental: use stream extension to communicate json
     var _streamHandlerGen = function(reqHandler) {
         return function(link, req, accept) {
             accept().pipe(es.writeArray(function(e, items){
@@ -127,12 +130,10 @@ var _TelehashUtil = function(reqHandler) {
             if(mesh) return resolve(mesh);
 
             // - cache links in a volume... TODO fix this, doesn't work
-            // var links = (fs.existsSync(linkFile) && cacheFlag) ? require(linkFile) : [];
             var links = [];
 
             telehash.mesh({id: endpoint, links: links}, function (e, created) {
                 if (e) reject(new TelehashException("mesh generation failed", e));
-                // console.log('--> mesh created. path #: ', created.json().paths.length, ', uri:', created.uri());
                 console.log('--> mesh created:', JSON.stringify(created.json(), null, 2));
 
                 // - begin routing
@@ -141,7 +142,6 @@ var _TelehashUtil = function(reqHandler) {
 
                 // - accept any link
                 created.accept = function (inc) {
-                    // console.log('--> incoming from', {"hashname": inc.hashname, "paths": inc.paths});
                     console.info('<-- incoming link from', inc.hashname);
                     // - establishes link from any incoming req
                     var link = created.link(inc);
@@ -197,24 +197,26 @@ var _TelehashUtil = function(reqHandler) {
             }
             var link = mesh.link(endpoint);
 
-            // - TODO fix this -- significantly faster but buggy; race two promises to get connection w/ 10s timeout
+            // - TODO fix this -- significantly faster but buggy
+            // - race two promises to get connection w/ 10s timeout
             // return Promise.race([
-            //     new Promise(function(resolve, reject){
-            //         setTimeout(function(){
-            //             reject(new TelehashException("failed to link to endpoint ["+JSON.stringify(endpoint)+"] (not found?)"), null, 404);
-            //         }, 10000);
-            //     }),
-            //     new Promise(function(resolve, reject) {
-            //         var interval = setInterval(function() {
-            //             if(link && link.up) {
-            //                 // - cb for out-link status changes
-            //                 link.status(_linkStatus);
-            //                 resolve(link);
-            //                 clearInterval(interval);
-            //             }
-            //         }, 200);
-            //     })
-            // ]);
+            Promise.race([
+                new Promise(function(resolve, reject){
+                    setTimeout(function(){
+                        reject(new TelehashException("failed to link to endpoint ["+JSON.stringify(endpoint)+"] (not found?)"), null, 404);
+                    }, 10000);
+                }),
+                new Promise(function(resolve, reject) {
+                    var interval = setInterval(function() {
+                        if(link && link.up) {
+                            // - cb for out-link status changes
+                            link.status(_linkStatus);
+                            resolve(link);
+                            clearInterval(interval);
+                        }
+                    }, 200);
+                })
+            ]);
 
             // - hold for 10s; replace with above when fixed
             setTimeout(function(){
@@ -262,6 +264,7 @@ var _TelehashUtil = function(reqHandler) {
                     path:   '/'
                 }
                 const req = link.request(ops, function(resp) {
+                    // - concat-stream used again to handle incoming responses
                     resp.pipe(cs(function(body) {
                         var payload = JSON.parse(body.toString());
                         console.log('<-- [thtp] incoming response', payload);
@@ -274,7 +277,6 @@ var _TelehashUtil = function(reqHandler) {
                 req.on('error', function(e) {
                     reject(new TelehashException('egress thtp request failed', e));
                 });
-                // req.write(JSON.stringify({payload}));
                 req.end(JSON.stringify(payload));
             }).catch(function(e) {
                 if (e instanceof TelehashException) {
@@ -285,10 +287,12 @@ var _TelehashUtil = function(reqHandler) {
         })
     }
 
-    // - point this instance to the central DTOU router
+    // - point this instance to a bootstrapping DTOU router
+    // - necessary when peers are behind NATs, and also when their full path info
+    //   is not available (i.e. we only have a hashname)
     var _bootstrap = function(addr) {
         return new Promise(function(resolve, reject) {
-            // - first, get router hints from the addr
+            // - first, get router hints from the addr (via the node endpoint, not thjs)
             var opts = {
                 host: addr,
                 path: '/telehash/router'
@@ -309,14 +313,13 @@ var _TelehashUtil = function(reqHandler) {
             });
             req.end();
         }).then(function(endpoint){
-            // - need to update hints if behind a vpc
+            // - need to update hints if router is also NATed
             var mapped = endpoint.paths.map(function(path) {
                 if (path.ip) {
                     path.ip = addr;
                 }
                 if (path.url) {
                     var parsed = url.parse(path.url);
-                    // - TODO make this not a string hack
                     path.url = parsed.protocol + '://' + addr + ':' + parsed.port + '/';
                 }
                 return path;
@@ -327,24 +330,7 @@ var _TelehashUtil = function(reqHandler) {
 
     }
 
-    // - handler for shutdowns; cleanly close links
-    // var _handler = function(sig){
-    //     if(mesh){
-    //         console.log('--> [EXIT]', sig);
-    //         console.log('--> closing all links: ', mesh.links.map(function(l) {
-    //             l.close();
-    //             return l.hashname;
-    //         }).join());
-    //     }
-    //     process.exit();
-    // }
-    //
-    // process.on('exit', _handler.bind(null, 'exit'));
-    // process.on('SIGINT', _handler.bind(null, 'SIGINT'));
-    // process.on('SIGUSR1', _handler.bind(null, 'SIGUSR1'));
-    // process.on('SIGUSR2', _handler.bind(null, 'SIGUSR2'));
-
-
+    // - init promise will load hashname & pathing, start the mesh, and preconnect
     return new Promise(function(resolve, reject) {
         _id().then(function(id) {
             return _router(id, reqHandler);
@@ -360,6 +346,7 @@ var _TelehashUtil = function(reqHandler) {
             }
             return Promise.resolve(mesh);
         }).then(function(mesh) {
+            // - export utility functions specific to this instance
             resolve({
                 bootstrap: _bootstrap,
                 connect: _connect,

@@ -1,5 +1,5 @@
 # - library couchdb image with CORS enabled
-
+# - straightforward modification of init file
 FROM couchdb:1.7.1
 
 RUN sed -i '/;socket_options/a enable_cors = true' /usr/local/etc/couchdb/local.ini && \

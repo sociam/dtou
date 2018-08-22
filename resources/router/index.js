@@ -55,10 +55,9 @@ var telehashRouter = function(thUtils) {
             resp.send(thUtils.links());
         });
 
-    // - connect to another telehash endpoint
     _telehashRouter.route('/connect')
+        // - connect to another telehash endpoint
         .post(function(req, resp, next) {
-            // extract the endpoint
             console.log('--> POST to /connect', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /connect missing field: endpoint", {}));
             _connectWithPrep(req.body.endpoint, resp, next, thUtils).then(function(link) {
@@ -70,10 +69,9 @@ var telehashRouter = function(thUtils) {
             });
         });
 
-    // - internal thtp proxy
     _telehashRouter.route('/data')
+        // - send arbitrary data across thjs connections
         .post(function(req, resp, next) {
-            // extract the endpoint
             console.log('--> POST to /data', req.body);
             if(!req.body.endpoint) return next(new BadRequestException("POST /data missing field: endpoint", {}));
             if(!req.body.payload) return next(new BadRequestException("POST /data missing field: payload", {}));
@@ -90,15 +88,15 @@ var telehashRouter = function(thUtils) {
 var dtouRouter = function(thUtils) {
     var _dtouRouter = express.Router();
 
-    // - uses same data model as stored in pdb for convenience
     _dtouRouter.route('/ask_peer')
+        // - method that fronts all dtou logic before communicating over thjs
+        // - payload uses same data model as stored in pdb for convenience
         .post(function(req, resp, next) {
             console.log('--> post /dtou/ask_peer', req.body);
-            // - TODO make this more generic for media besides thtp
             if(!req.body.endpoint) return next(new BadRequestException("POST /dtou/ask_peer missing field: endpoint", {}));
-            // _connectWithPrep(req.body.router, resp, next, thUtils).then(function(link) {
-            //         var updated = dtouUtils.outboundCheckDtou(req.body.payload);
+            // - figure out which request to send (get dtou or get content)
             dtouUtils.outboundProcessDtou(req.body.payload).then(function(updated) {
+                // - then fire it out using thjs
                 return thUtils.fire(updated, req.body.endpoint);
             }).then(function(out){
                 resp.send(out);
@@ -108,6 +106,7 @@ var dtouRouter = function(thUtils) {
         });
 
     _dtouRouter.route('/roles')
+        // - get role --> dtou mappings
         .get(function(req, resp, next) {
             console.log('--> get /dtou/roles');
             dtouUtils.getRolesToDtou().then(function(got) {
@@ -123,20 +122,24 @@ var dtouRouter = function(thUtils) {
             console.log('--> post /dtou/roles', req.body);
             var update = function(roles, dtou, resources, identifiers) {
                 return dtouUtils.getRolesToDtou().then(function(allRoles){
+                    // - figure out which existing roles we're trying to update
                     var filtered = allRoles.filter(function(x) {return roles.includes(x._id);}),
                         existingResources = _.flatten(filtered.map(function(r){return r.resources})),
                         existingUsersToRoles = {};
                     filtered.map(function(role) {
+                        // - figure out whether users have already been assigned to these roles
                         role.identifiers.map(function(id) {
                             if (!existingUsersToRoles[id]) existingUsersToRoles[id] = [];
                             existingUsersToRoles[id].push(role._id);
                         })
                     });
+                    // - sequentially update mappings: role --> dtou, role --> resources, users --> roles
                     return dtouUtils.setRolesToDtou(roles, dtou ? dtou : {}).then(function(got) {
                         return dtouUtils.setRolesToResources(roles, resources ? resources : [], existingResources);
                     }).then(function() {
                         return dtouUtils.setUsersToRoles(identifiers ? identifiers : [], roles, existingUsersToRoles);
                     }).then(function(){
+                        // - sanity check to validate updated roles
                         return dtouUtils.getRolesToDtou();
                     }).then(function(newRoles){
                         return newRoles.filter(function(x) {return roles.includes(x._id)});
@@ -181,7 +184,6 @@ var dtouRouter = function(thUtils) {
                     return resp.send(res);
                 });
             }
-            // return next(new BadRequestException('DELETE /dtou/roles missing field: roles', {}));
         });
 
     return _dtouRouter;
@@ -189,7 +191,7 @@ var dtouRouter = function(thUtils) {
 
 
 // - cb for actually running the app
-// - if running the docker container, use docker run -p 8080:3000 or equiv
+// - if running the docker container, use docker run -p 8080:3000 or docker-compose (see docker dir)
 var bootstrap = function() {
     const thUtils = telehashUtils.instance(dtouUtils.inboundController).then(function(thUtils){
         // - we're using json
@@ -213,7 +215,6 @@ var bootstrap = function() {
             console.error('--> exception:', e.stack);
             if (e.status) return resp.status(e.status).send({"error": e.message, "details": e.details});
             resp.status(400).send({"error": e.message, "details": e.details})
-            // next(e);
         });
 
         // - listen to the default port
@@ -223,9 +224,5 @@ var bootstrap = function() {
         });
     });
 };
-
-// var id = telehashUtils.id();
-// var mesh = telehashUtils.router(id);
-// var server = bootstrap(mesh);
 
 bootstrap();

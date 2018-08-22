@@ -1,6 +1,10 @@
+# - docker compose file for both couchdb + the dtou app
+# - run this in the project root, i.e. $> docker-compose -f docker/docker-compose.yml up --build -d
+# - attach to the router logs with docker logs -f dtou-router
 version: "3"
 services:
   router:
+# - use this if not running on host network
 #    depends_on:
 #      - couchdb
     container_name: dtou-router
@@ -11,9 +15,10 @@ services:
     ports:
       - 80:80
     volumes:
+      # - persist configuration data (hashname)
       - ~/.dtou:/mnt/dtou
-    # NOTE: if using ctr as a telehash router on a linux instance, must set network to host
-    #       this will also disable depends_on
+    # - if using ctr as a telehash router on a linux instance, must set network to host
+    #   this will also disable depends_on
     network_mode: "host"
     environment:
       TH_CACHE: "true"
@@ -28,8 +33,10 @@ services:
     ports:
       - 5984:5984
     volumes:
+      # - persist couchdb documents
       - ~/.dtou/couchdb/data:/usr/local/var/lib/couchdb
 
+# - use this in previous versions to prevent volume being deleted
 #volumes:
 #  ~/.dtou/couchdb/data:
 #    external: true

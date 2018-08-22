@@ -14,7 +14,9 @@ function PouchException(msg, wrapped, status) {
     e.status = status ? status : 500;
     return e;
 }
+
 var _name = function(name, override) {
+    // - tiny helper for connecting to the right backend
     if (name && override) {
         return name;
     } else if (name) {
@@ -38,7 +40,8 @@ var _database = function(name, override) {
     });
 };
 
-// - fakes a backbone model get
+// - fakes the backbone model get in the chrome extension
+// - this is so the whole ctr can be ported into the browser in the future
 var _getModel = function(name, id) {
     return _database(name).then(function(db) {
         return db.get(id);
@@ -77,7 +80,6 @@ var _delete = function(name, item) {
         return Promise.reject(new PouchException("deletion failure", e));
     });
 }
-
 
 module.exports = {
     db: _database,

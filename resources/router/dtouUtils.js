@@ -54,6 +54,7 @@ var getAllRoleNames = function() {
     },
     getRolesToResources = function(roles) {
         return storageUtils.db(acldbName).then(function(db) {
+            // - moderately straightforward: get resources to which roles have access
             let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
             return Promise.all(roles.map(function(role){
                 return acl.whatResources(role).then(function(out){
@@ -64,6 +65,7 @@ var getAllRoleNames = function() {
     },
     getRolesToUsers = function(roles) {
         return storageUtils.db(acldbName).then(function(db) {
+            // - similarly get users to which roles are attached
             let acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
             return Promise.all(roles.map(function(role){
                 return acl.roleUsers(role).then(function(out) {
@@ -75,6 +77,7 @@ var getAllRoleNames = function() {
     setRolesToDtou = function(roles, dtou) {
         return Promise.all(roles.map(function(role) {
             return storageUtils.update(roledbName, role, function(prev){
+                // - overwrite by default instead of merging; easier for deletions
                 // if(!prev || !prev.dtou) return {dtou:dtou};
                 // return {dtou:_.merge(prev.dtou, dtou)};
                 return {dtou:dtou};
@@ -84,12 +87,14 @@ var getAllRoleNames = function() {
         });
     },
     setRolesToResources = function(roles, resources, existing) {
-        // - TODO: make this a transaction
+        // - TODO: prone to race conditions (should be ok if user sets rbac serially); need to make this a transaction
         // - two-phased acl updater; add new resources to roles and remove pre-existing resources that are not included
         return storageUtils.db(acldbName).then(function(db){
+            // - find diff, i.e. resources to be added + removed
             let acl = new Acl(new Acl.pouchdbBackend(db, acldbName)),
                 toAdd = resources.filter(function(resource){return !existing || !existing.includes(resource)}),
                 toRemove = existing ? existing.filter(function(resource) {return !resources.includes(resource)}) : [];
+            // - should not cause a problem w/ parallel promises (allow/removeAllow operate on separate cdb docs)
             return Promise.all(roles.map(function(role) {
                 console.info('-- adding resources', role, toAdd, [role]);
                 return toAdd.length > 0 ? acl.allow(role, toAdd, [role]) : [];
@@ -110,7 +115,7 @@ var getAllRoleNames = function() {
         });
     },
     setUsersToRoles = function(newIdentifiers, newRoles, existingMap) {
-        // - TODO: make this a transaction
+        // - TODO: make this a transaction too
         // - same as setRolesToResources but for users; add new users and remove pre-existing, non-specified users
         return storageUtils.db(acldbName).then(function(db) {
             var acl = new Acl(new Acl.pouchdbBackend(db, acldbName));
@@ -137,7 +142,7 @@ var getAllRoleNames = function() {
         });
     },
     deleteRoles = function(roleDocs) {
-        // - todo will need to implement transaction/retry logic for this function
+        // - TODO: this also has to become a transaction
         console.info(roleDocs);
         var filtered = roleDocs.filter(function(doc){return !doc._id || !doc._rev});
         if(filtered.length != 0) throw new DtouException('role deletion requires _id and _rev');
@@ -160,6 +165,7 @@ var getAllRoleNames = function() {
         });
     },
     // - helper function for resolving roles by folding them against the default dtou
+    // - if dtous are integrated with a policy lang this would be way more sophisticated
     _resolveRoles = function(content, roleNames){
         var empty = !roleNames || roleNames.length == 0;
         if(!content.dtou.definitions.defaultToNone && empty){
@@ -174,8 +180,6 @@ var getAllRoleNames = function() {
                 return {accept:true, id:roleNames[0], dtou:res[0].dtou, db:roledbName};
             });
         } else {
-            // return {accept:true, }
-            // return accept, resolve(roles).id, resolve(roles).dtou, db:roledbName
             console.warn('--- multi-role resolution not supported yet');
             return Promise.resolve({accept:true, id:content._id, dtou:content.dtou, db:defaultdbName});
         }
@@ -193,11 +197,13 @@ var getAllRoleNames = function() {
         }
     },
     outboundProcessDtou = function(blob) {
+        // - method that figures out whether we're asking for dtous or hidden content
         // - A selects dtous + ask for further operations on B's data wrt dtous
         if(!blob.type) throw new DtouException('dtou blob missing field: type');
         if(blob.cmd) console.warn('dtou blob already had field: cmd', blob);
         if(blob.type === dtouTypes.tweet){
             var slim = _.omit(blob, ['text', 'html', 'conversationId']);
+            // - if we haven't agreed to one already, ask for a dtou
             if (!blob.agreement || Object.keys(blob.agreement).length === 0){
                 return Promise.resolve(_.merge(slim, {cmd: commands.get_defs}));
             }
@@ -205,19 +211,19 @@ var getAllRoleNames = function() {
         }
     },
     _inboundCheckDtou = function(myContent, dtouIdentifier, theirPermissions) {
-        // - B processes incoming request for dtou definitions from A, send them out
+        // - this is called in response to requests for releasing dtous, and
+        //   figures out which dtou to send out
         if(myContent.type === dtouTypes.tweet) {
             var resolved = _resolveRoles(myContent, theirPermissions[myContent._id]),
                 dtou = resolved.dtou,
                 contentMerged = _.merge(myContent, dtou);
-            console.info('--> RESOLVED CHECKING DTOU', contentMerged);
+            console.info('--> resolved dtou check', contentMerged);
             if(contentMerged.dtou) contentMerged.dtou.secrets = {};
             return Promise.resolve(_.pick(contentMerged, ['_id', '_rev', 'dtou', 'cmd']));
         }
     },
     _inboundProcessDtou = function(theirContent, myContent, dtouIdentifier, theirPermissions) {
         // - B releases data, subject to A's agreement and B's dtou
-        // - TODO refine DTOU logic, e.g. future project: DTOU spec lang
         return _resolveRoles(myContent, theirPermissions[myContent._id]).then(function(resolved) {
             // - accept is false iff dtouIdentifier doesn't have a role and the user specified
             //   unrecognised peers to be automatically rejected

@@ -1,3 +1,4 @@
+# - example locust file used for load testing
 from locust import HttpLocust, TaskSet
 import json
 
@@ -6,6 +7,7 @@ head = {
 }
 
 def defs(l):
+    # - fire a whole bunch of info through thjs, expect rejection
     payload = {
         "endpoint": {
             "hashname": "iwnzepzsxsswed4cwn5mbkavwi4qu27e7753wfguicexdzdoqoxq"
@@ -18,6 +20,8 @@ def defs(l):
     l.client.post("/dtou/ask_peer", data=json.dumps(payload), headers=head)
 
 def agree(l):
+    # - this data may/may not get rejections but is a more accurate test of
+    #   pdb and dtou overhead
     payload = {
         "endpoint": "7tssmkqetiqlo7swz3llkkceubnaph2anwop2evlui6pk6pnumea",
         "payload": {
@@ -46,6 +50,7 @@ class UserBehavior(TaskSet):
     tasks = {agree: 1}
 
 class WebsiteUser(HttpLocust):
+    # - make simulated users wait for an avg of 5s
     task_set = UserBehavior
     min_wait = 4500
     max_wait = 5500

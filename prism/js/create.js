@@ -3,19 +3,21 @@
 console.log('hello --- create!');
 
 angular.module('dtouprism')
-    .controller('create', function($scope, storage, utils, $location, $timeout, $sce) {
+    .controller('create', ($scope, storage, utils, $location, $timeout, $sce) => {
         var bg = chrome.extension.getBackgroundPage(),
             url = $location.absUrl(),
+            // - this page should be loaded with param containing user's thjs id
             oid = utils.getUrlParam(url, 'id'),
             ui = $scope.ui = {},
             loadResourceUsers = () => {
+                // - for assigned roles to this resource, get associated users/resources
                 ui.resources = _.uniqBy(_.flatMap(ui.chosen, (acl) => {return acl.resources}));
                 ui.identifiers = _.uniqBy(_.flatMap(ui.chosen, (acl) => {return acl.identifiers}));
             },
             loadAcls = () => {
                 return bg.getAcls().then((acls) => {
                     ui.acls = acls;
-                    // - these are for the use-role attachment ui
+                    // - these are for the use-role attachment ui (chosen === assigned)
                     ui.chosen = acls.filter((acl) => {return acl.resources && acl.resources.includes(oid)});
                     ui.unchosen = acls.filter((acl) => {return !!acl.resources || !acl.resources.includes(oid)});
                     loadResourceUsers();
@@ -27,10 +29,9 @@ angular.module('dtouprism')
             },
             makeOnClicks = () => {
                 $timeout(() => {
-                    // - a massive waste of time but necessary until i figure out
-                    //   why chrome extensions dont work with bootstrap <a>s
+                    // - necessary as chrome extensions dont work with bootstrap <a>s
                     ['create', 'assign'].map((item) => {
-                        $('#'+item).on('click', function() {
+                        $('#'+item).on('click', () => {
                             $('.nav-link').removeClass('active');
                             $('.tab-pane').removeClass('show').removeClass('active');
                             $('#'+item).addClass('active');
@@ -38,7 +39,7 @@ angular.module('dtouprism')
                         });
                     });
 
-                    // - options for assigning roles
+                    // - options for assigning roles (multi-select)
                     let assignedList = $('#assign-role-list');
                     let chosenIds = ui.chosen.map((acl) => {return acl._id});
                     ui.acls.map((acl) => {
@@ -46,6 +47,7 @@ angular.module('dtouprism')
                         if(chosenIds.includes(acl._id)) opt.attr('selected', 'selected');
                         opt.appendTo(assignedList);
                     });
+                    // - when the assigned role list changes, update backend vars
                     assignedList.on('change', () => {
                         $timeout(() => {
                             let newIds = assignedList.val() ? assignedList.val() : [];
@@ -58,14 +60,18 @@ angular.module('dtouprism')
             };
 
         $scope.$l = $location;
+
+        // - set page to loading state
         ui.loading = true;
         ui.loadingLong = false;
 
-        $timeout(function(){
+        // - if we're still loading after 10s, show the long loading msg
+        $timeout(() => {
             ui.loadingLong = ui.loading;
         }, 10000);
 
         $scope.serialise = (s) => JSON.stringify(s);
+        // - load documents stored in cdb
         bg.getCollectionWrapped('items', {force:true}).then((collection) => {
             console.log(`got collection ${collection.models.length}, ${oid}, ${url}`);
             $timeout(() => {
@@ -75,6 +81,7 @@ angular.module('dtouprism')
                     ui.author = m.attributes.author;
                     $scope.selectedHtml = $sce.trustAsHtml($scope.selected.attributes.html || $scope.selected.attributes.text);
                     if(m.attributes.dtou){
+                        // - bind frontend variables to values from the backend model
                         var dtou = m.attributes.dtou;
                         ui.substitute = dtou.definitions.substitute;
                         ui.substituteHtml = dtou.secrets.substituteHtml;
@@ -97,8 +104,10 @@ angular.module('dtouprism')
             $scope.$watchCollection($scope.items, () => { console.log(' items changed ', $scope.items.length ); });
         });
 
+        // - triggered when UI save button is clicked for dtous
         $scope.save = () => { 
             if ($scope.selected && $scope.ui) {
+                // - create or update values in the backend
                 var m = $scope.selected,
                     attr = m.attributes,
                     dtou = attr.dtou || {
@@ -125,13 +134,14 @@ angular.module('dtouprism')
                 m.set('dtou', dtou);
                 $scope.selected.save().then(() => {
                     console.log(`model updated ${m.id}`, dtou);
-                    $timeout(function() {
+                    $timeout(() => {
                         window.location.reload();
                     }, 200);
                 });
             }
         };
 
+        // - triggered when roles assigned to a piece of content
         $scope.assign = () => {
             if($scope.ui && ui.chosen) {
                 var resourceAdded = ui.chosen.map((role) => {
@@ -142,10 +152,11 @@ angular.module('dtouprism')
                     role.resources = role.resources.filter((id) => {return id !== oid});
                     return role;
                 });
+                // - call RPC, which will handle logic to add/remove roles to the resource
                 bg.setAcls(resourceAdded).then(() => {
                     return bg.setAcls(resourceRemoved);
                 }).then(() => {
-                    $timeout(function() {
+                    $timeout(() => {
                         window.location.reload();
                     }, 200);
                 });
@@ -153,5 +164,4 @@ angular.module('dtouprism')
         };
 
         window._s = $scope;
-
     });

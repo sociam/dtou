@@ -10,12 +10,14 @@
                     'content-type': 'application/json'
                 };
 
+            // - the identifier injected into tweets is <token> <hashname> (e.g. dtou-thjs asdfq2e12...)
             var endpointToIdentifier = function(endpoint) {
                 if(!endpoint.mesh.hashname) return 'ERROR --> check console';
                 return token + ' ' + endpoint.mesh.hashname;
             };
 
             var id = function(local) {
+                // - to get our hashname call the node js router info endpoint
                 return new Promise(function(resolve, reject){
                    var out = new URL(local);
                    out.pathname = 'telehash/router';
@@ -32,6 +34,7 @@
             };
 
             var connect = function(local, endpoint) {
+                // - connect to a different thjs endpoint (find it e.g. using an injected token)
                 return new Promise(function (resolve, reject) {
                     var out = new URL(local);
                     out.pathname = 'telehash/connect';
@@ -53,6 +56,7 @@
             };
 
             var fire = function(local, endpoint, payload) {
+                // - send arbitrary info to another user via thjs
                 return new Promise(function (resolve, reject) {
                     var out = new URL(local);
                     out.pathname = 'telehash/data';
@@ -74,6 +78,9 @@
             };
 
             var askPeer = function(local, endpoint, router, payload) {
+                // - call the main thjs + rbac endpoint that handles all dtou communications
+                // - requires local (node ctr url), endpoint (remote hashname),
+                //   router (thjs router url), and the payload we are sending
                 return new Promise(function(resolve, reject) {
                     var out = new URL(local);
                     out.pathname = 'dtou/ask_peer';
@@ -97,6 +104,7 @@
             };
 
             var extractFromText = function(text) {
+                // - get a hashname out of a text chunk
                 var split = text.split(/\s+/);
                 var hn = split[split.indexOf(token) + 1];
                 if (hn.length != 52) console.warn('>> might have found a weird hash', hn);

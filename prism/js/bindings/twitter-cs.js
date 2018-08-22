@@ -1,13 +1,8 @@
 /* globals chrome, $, _ */
 
-
-// console.log('hello from content script', $('.tweet').length, $('.tweet'));
-
-// twitter content script
+// twitter binding script
 // some very basic low level jQuerying :)
-// read this https://developer.chrome.com/extensions/messaging
-
-angular.module('dtouprism').controller('twittercs', function($scope) {
+angular.module('dtouprism').controller('twittercs', ($scope) => {
 
     console.log('DToU Prism Activated');
 
@@ -24,7 +19,6 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 // extract id
                 var tweetid = $(tweet).data('tweet-id');
                 // extract content
-                // console.log('ihtml', tweet, $(tweet).find('.tweet-text')[0].childNodes[0]);
                 var content = $(tweet).find('.tweet-text')[0].childNodes[0];
                 // stop propagation
                 evt.stopPropagation();
@@ -32,54 +26,57 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             });
         },
         openTab = (path, tweet, extras) => {
+            // - tells the bg to open a tab with additional data as a b64 encoded json blob
             console.log('extras:', extras)
             port.postMessage({
                 cmd: 'openTab',
-                // url: [path, '?', $.param(_.extend({id:tweet.id, active:true}, extras))].join(''),
                 url: [path, '?', $.param({id:tweet.id, active:true, encoded:btoa(JSON.stringify(extras))})].join(''),
                 active: true
             });
         },
         makeBtn = (id, img) => {
+            // - creates token injection buttons on a provided tweetbox id
             return '<span class="TweetBoxExtras-item"><div class="dtou-inject">\n' +
                 '  <button class="btn icon-btn js-tooltip dtou-button" id="'+id+'" type="button" style="background-color:transparent" ' +
                 'data-delay="150" data-original-title="Insert DToU Identifier"><img src="'+img+'" height="24"/></button></div></span>';
         },
         addButton = () => {
-            // - TODO refactor + add buttons to replies
+            // - TODO refactor + add buttons to tweet threads + other places
             var img = chrome.extension.getURL('img/prism.png');
 
+            // - create a token injection button the home page tweetbox
             $('.home-tweet-box .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-home', img));
-            $('#dtou-button-home').on('click', function() {
+            $('#dtou-button-home').on('click', () => {
                 port.postMessage({cmd:'get_id', loc:'#tweet-box-home-timeline'});
             });
 
+            // - and one for the tweet popup
             $('.tweet-box-content .TweetBoxToolbar .TweetBoxExtras').append(makeBtn('dtou-button-popup', img));
-            $('#dtou-button-popup').on('click', function() {
+            $('#dtou-button-popup').on('click', () => {
                 port.postMessage({cmd:'get_id', loc:'*[aria-labelledby="Tweetstorm-tweet-box-0-label Tweetstorm-tweet-box-0-text-label"]'});
             });
         },
         addMenu = (tweet, tweetData) => {
+            // - add options on tweet dropdowns for tweets that we own
             let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
             $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
-            // $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View DToU Status</button></li>')
-            //     .on('click', function() { console.log('view status'); openTab('/edit.html', tweetData); $('.dropdown').removeClass('open'); return true; })
-            //     .prependTo(sel);
             $(`<li class="dtou-dropdown"><button type="button" class="dropdown-link">View/Modify DToU Declarations</button></li>`)
-                .on('click', function() {
+                .on('click', () => {
                     openTab('/create.html', tweetData);
                     $('.dropdown').removeClass('open');
                     return true;
                 }).prependTo(sel);
         },
         saveTweet = (twt, options) => {
+            // - helper function for keeping tweets in pdb
             console.info('saving tweet >> ', twt);
             port.postMessage({cmd:'save', data: _.extend({type:'tweet'}, twt, options)});
         },
-        guid = function(len) {
+        guid = (len) => {
+            // - for message nonces (global message id)
             len = len || 64;
             var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ-';
-            return Date.now() + '-' + _.range(0,len).map(function () {
+            return Date.now() + '-' + _.range(0,len).map(() => {
                 return alpha[Math.floor(Math.random() * alpha.length)];
             }).join('');
         },
@@ -96,6 +93,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             });
         },
         secondLayerHtml = (definitions, secrets) => {
+            // - add our own hidden content + disclaimer, or peer's hidden content + disclaimer
+            // - reveal on mouseover (see css)
             var substituted = '';
             if(secrets.substituteHtml){
                 substituted += '<div>'+secrets.substituteHtml+'</div>';
@@ -106,23 +105,21 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             return substituted;
         },
         augment = (tweet, data, cb) => {
+            // - this method augments our tweets with hidden content + menus
+            // - get stored tweets for ourselves
             askBg({cmd:'get_model', id:data.id}).then((response) => {
-                // - TODO put this whole blob into dtou_handlers/twitter.js
-                // console.log('askBG get response!!!  >> ', response.data, response.data.dtou);
+                // - an enhanced tweet <--> has hidden content
                 if (!response.data.dtou) return;
-                // - content substitution dtou
                 if (response.data.dtou.definitions.substitute) {
                     var things = $(tweet).find('.js-tweet-text-container p').clone();
                     $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
                     things.addClass('secondLayer');
-                    // console.log('askBG >> ', {cmd: 'get_model', id: data.id});
                     window._tweet = tweet;
-                    // window._response = response;
                     window.things = things;
+                    // - inject the hidden content (might be a reject notice if peer denies dtou agreement)
                     let substituted = secondLayerHtml(response.data.dtou.definitions, response.data.dtou.secrets);
                     $(things).html(substituted);
                     $(tweet).find('.js-tweet-text-container').append(things);
-                    // $($(tweet).find('.js-tweet-text-container p')[0]).hide();
                 }
             }).then((res) => {
                 if (cb && typeof cb === 'function') cb();
@@ -130,6 +127,10 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             });
         },
         addMenuAndAugmentOther = (tweet, tweetData, cb) => {
+            // - this method augments a peer's tweet w/ its dtou and, if released, its hidden content
+            // - we execute two promises in parallel:
+            //   1. get stored agreements/peer dtous for review (from pdb)
+            //   2. ask peer for their hidden content with existing agreements (with telehash)
             var got_model = askBg({cmd:'get_model', id:tweetData.id});
             var peer_resp = got_model.then((got) => {
                 var payload = _.merge((got.data) ? got.data : tweetData, {id:tweetData.id});
@@ -141,29 +142,32 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 var mySavedData = pair[0],
                     peerData = pair[1];
 
+                // - check that we haven't augmented the tweet already
                 if ($(tweet).find('li.dtou-dropdown').length === 0) {
                     console.info('>> got peer dtou', peerData.data);
                     let sel = $(tweet).find('.ProfileTweet-action .dropdown-menu ul')[0];
                     $(sel).prepend('<li class="dtou-dropdown dropdown-divider"></li>');
-                    // - add menu for recognising peer dtou user
+                    // - add menu for recognising peer dtou user (assigning roles; permissions.js)
                     let recognise = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">Recognise User as a Peer</button></li>');
-                    // - add menu for accepting dtous
+                    // - add menu for reviewing + accepting dtous (other.js)
                     let btn = $('<li class="dtou-dropdown"><button type="button" class="dropdown-link">View and Accept Peer DToUs</button></li>');
+                    // - this just notifies user if we couldnt talk to the peer
                     if (!peerData.data || peerData.data.error) {
                         [btn, recognise].map((item) => {
                             item.find('button')
                                 .addClass('js-tooltip')
                                 .attr('data-original-title', 'connection error; check DToU settings')
                                 .attr('data-delay', '0');
-                            item.on('mouseenter', function () {
+                            item.on('mouseenter', () => {
                                 item.find('button').addClass('in');
                                 return true;
-                            }).on('mouseleave', function () {
+                            }).on('mouseleave', () => {
                                 item.find('button').removeClass('in');
                                 return true;
                             }).prependTo(sel);
                         });
                     } else {
+                        // - we're the consumer; open UIs from our perspective
                         let consumer = {
                             twitter: {
                                 author:profile.screenName,
@@ -185,18 +189,15 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                     // - augment tweet with returned dtou data
                     if (mySavedData.data.agreement && _.get(peerData, ['data','dtou','secrets'])) {
                         var things = $(tweet).find('.js-tweet-text-container p').clone();
-
                         $(tweet).find('.js-tweet-text-container p').addClass('firstLayer');
                         things.addClass('secondLayer');
                         window._tweet = tweet;
-                        // window._response = peerData;
                         window.things = things;
                         let substituted = secondLayerHtml(peerData.data.dtou.definitions, peerData.data.dtou.secrets);
                         $(things).html(substituted);
                         $(tweet).find('.js-tweet-text-container').append(things);
                     }
                 }
-
                 return peerData;
             }).then((res) => {
                 if(cb && typeof cb === 'function') cb();
@@ -204,7 +205,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             });
         },
         extractTweet = (tweetDOM) => {
-            // var decoded = $(tweetDOM).data('') && JSON.parse($(tweetDOM)
+            // - convenience method for getting the info out of tweets
             return {
                 id:'tweet-'+$(tweetDOM).data('tweet-id'),
                 type:'tweet',
@@ -218,19 +219,11 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             };
         },
         update_dom = () => {
+            // - this looks through the twitter UI and uses the above methods to add menus/btns/hidden content
             var res;
             domLock.then(() => {
-                // - TODO the mutex doesn't actually work -- figure this out later
-                // console.info('updating dom');
-                // domLock = new Promise((resolve, reject) => {res = () => resolve(console.info('updated dom'));});
                 if (profile === undefined) profile = extract_profile();
-
-                // visible tweets ...
-                // var visible_tweets = $('.tweet').map((x,y) => parseInt($(y).attr('data-tweet-id')));
-                // intersected_tweets = _.intersection(visible_tweets, registered_tweet_ids);
-
                 // find my own tweets
-                // console.log('seeking ', profile.screenName, 'owned tweets :',$('.tweet').filter(function() {  return $(this).data('screen-name') === profile.screenName; }).length);
                 var res2,
                     augmenting = new Set(),
                     augLock = new Promise((resolve, reject) => {res2 = resolve}),
@@ -238,10 +231,11 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                         augmenting.delete(id);
                         if(augmenting.size == 0) res2();
                     },
-                    findMine = function () {
+                    // - convenience methods for finding our and our peers' tweets
+                    findMine = () => {
                         return $(this).data('screen-name') === profile.screenName;
                     },
-                    findOthers = function () {
+                    findOthers = () => {
                         return $(this).data('screen-name') != profile.screenName &&
                             $(this).find('.js-tweet-text-container').text().indexOf(token) >= 0;
                     };
@@ -249,6 +243,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 $('.tweet').filter(findMine)
                     .addClass('mine')
                     .map((x, tweet) => {
+                        // - check this hasn't been already augmented
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
                             var tweetData = extractTweet(tweet);
                             augmenting.add(tweetData.id);
@@ -261,6 +256,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
                 // - find tweets with dtou augmentation
                 $('.tweet').filter(findOthers)
                     .map((x, tweet) => {
+                        // - a little more complicated, 2nd check for augmentation done
+                        //   within addMenuAndAugmentOther
                         if ($(tweet).find('li.dtou-dropdown').length === 0) {
                             var tweetData = extractTweet(tweet);
                             augmenting.add(tweetData.id);
@@ -281,15 +278,13 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
     var init = () => {
         // connect to the back-end; bg has onConnect listener for receiving messages from this tab
         port = chrome.runtime.connect();
-
-        $('#timeline').bind('DOMSubtreeModified', function(e) {
+        $('#timeline').bind('DOMSubtreeModified', (e) => {
             if (e.target.innerHTML.indexOf('"tweet ') >= 0) {
                 update_dom();
             }
-            //  if (e.target.innerHTML.length > 0) { update_dom(); }
         });
-
-        port.onMessage.addListener(function(msg) {
+        // - hook this page up to the bg
+        port.onMessage.addListener((msg) => {
             // - unblocks promises that are waiting for the bg central handlers
             if (msg.cb_nonce && cbHandlers[msg.cb_nonce]) {
                 return cbHandlers[msg.cb_nonce](msg);
@@ -308,7 +303,7 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
             console.error("unknown message", msg, cbHandlers);
         });
         port.postMessage({cmd:'get_defs', type:'tweet'});
-        port.onDisconnect.addListener(function(e) {
+        port.onDisconnect.addListener((e) => {
             console.error('>> port disconnected', e);
         });
         addButton();
@@ -317,7 +312,8 @@ angular.module('dtouprism').controller('twittercs', function($scope) {
     init();
 });
 
-// - couldnt find a better way of doing this
+// - we dont load other angular modules on the twitter page, so just attach this script
+//   to a dummy element
 $('html').append('<div id="dtouPrism" ng-app="dtouprism" ng-controller="twittercs"></div>');
 var rootEle = $(this).find('#dtouPrism');
 angular.bootstrap(rootEle);
